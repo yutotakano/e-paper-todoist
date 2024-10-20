@@ -19,7 +19,7 @@ int EPD_Init_4in2_V2()
     EPD_SendCommand(0x12);
     EPD_WaitUntilIdle_high();
 
-    EPD_Send_2(0x21, 0x40, 0x00);
+    EPD_Send_2(0x21, 0x80, 0x00);
     EPD_Send_1(0x3C, 0x05);
     EPD_Send_1(0x11, 0x03);
 
@@ -29,16 +29,16 @@ int EPD_Init_4in2_V2()
     EPD_Send_1(0x4E, 0x00);
     EPD_Send_2(0x4F, 0x00, 0x00);
 
-    EPD_SendCommand(0x24); // DATA_START_TRANSMISSION_1
-    for (int i = 0; i < 15000; i++)
-        EPD_SendData(0xFF); // Red channel
+    // EPD_SendCommand(0x24); // DATA_START_TRANSMISSION_1
+    // for (int i = 0; i < 15000; i++)
+    //     EPD_SendData(0xFF); // Red channel
 
-    EPD_SendCommand(0x22);
-    EPD_SendData(0xF7);
-    EPD_SendCommand(0x20);
-    EPD_WaitUntilIdle_high();
+    // EPD_SendCommand(0x22);
+    // EPD_SendData(0xF7);
+    // EPD_SendCommand(0x20);
+    // EPD_WaitUntilIdle_high();
 
-    EPD_SendCommand(0x24); // DATA_START_TRANSMISSION_1
+    // EPD_SendCommand(0x24); // DATA_START_TRANSMISSION_1
     return 0;
 }
 
@@ -52,148 +52,6 @@ void EPD_4IN2_V2_Show(void)
     EPD_SendCommand(0x10); // DEEP_SLEEP
     EPD_SendData(0x01);
 }
-
-unsigned char lut_dc_4in2b[] =
-    {
-        0x00,
-        0x17,
-        0x00,
-        0x00,
-        0x00,
-        0x02,
-        0x00,
-        0x17,
-        0x17,
-        0x00,
-        0x00,
-        0x02,
-        0x00,
-        0x0A,
-        0x01,
-        0x00,
-        0x00,
-        0x01,
-        0x00,
-        0x0E,
-        0x0E,
-        0x00,
-        0x00,
-        0x02,
-        0x00,
-        0x00,
-        0x00,
-        0x00,
-        0x00,
-        0x00,
-        0x00,
-        0x00,
-        0x00,
-        0x00,
-        0x00,
-        0x00,
-        0x00,
-        0x00,
-        0x00,
-        0x00,
-        0x00,
-        0x00,
-        0x00,
-        0x00,
-};
-
-// R21H
-unsigned char lut_ww_4in2b[] =
-    {
-        0x40,
-        0x17,
-        0x00,
-        0x00,
-        0x00,
-        0x02,
-        0x90,
-        0x17,
-        0x17,
-        0x00,
-        0x00,
-        0x02,
-        0x40,
-        0x0A,
-        0x01,
-        0x00,
-        0x00,
-        0x01,
-        0xA0,
-        0x0E,
-        0x0E,
-        0x00,
-        0x00,
-        0x02,
-        0x00,
-        0x00,
-        0x00,
-        0x00,
-        0x00,
-        0x00,
-        0x00,
-        0x00,
-        0x00,
-        0x00,
-        0x00,
-        0x00,
-        0x00,
-        0x00,
-        0x00,
-        0x00,
-        0x00,
-        0x00,
-};
-
-// R22H    r
-unsigned char lut_bw_4in2b[] =
-    {
-        0x40,
-        0x17,
-        0x00,
-        0x00,
-        0x00,
-        0x02,
-        0x90,
-        0x17,
-        0x17,
-        0x00,
-        0x00,
-        0x02,
-        0x40,
-        0x0A,
-        0x01,
-        0x00,
-        0x00,
-        0x01,
-        0xA0,
-        0x0E,
-        0x0E,
-        0x00,
-        0x00,
-        0x02,
-        0x00,
-        0x00,
-        0x00,
-        0x00,
-        0x00,
-        0x00,
-        0x00,
-        0x00,
-        0x00,
-        0x00,
-        0x00,
-        0x00,
-        0x00,
-        0x00,
-        0x00,
-        0x00,
-        0x00,
-        0x00,
-};
 
 int EPD_Init_4in2b_V2()
 {

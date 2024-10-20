@@ -20,7 +20,8 @@ ESP8266WebServer server(80);
 IPAddress myIP; // IP address in your local wifi net
 
 int32_t last_counter = 0;
-lv_display_t *lvgl_display;
+lv_display_t *lvgl_display_black;
+lv_display_t *lvgl_display_red;
 static uint8_t lvgl_draw_buffer[400 * 300 / 8 + 8];
 
 void lvgl_flush_callback(lv_display_t *display, const lv_area_t *area, unsigned char *px_map);
@@ -77,16 +78,28 @@ void setup(void)
   Serial.println("HTTP server started");
 
   lv_init();
-  lvgl_display = lv_display_create(400, 300);
-  lv_display_set_buffers(lvgl_display, lvgl_draw_buffer, NULL, sizeof(lvgl_draw_buffer), LV_DISPLAY_RENDER_MODE_DIRECT);
-  lv_display_set_flush_cb(lvgl_display, lvgl_flush_callback);
+  lvgl_display_black = lv_display_create(400, 300);
+  lv_display_set_buffers(lvgl_display_black, lvgl_draw_buffer, NULL, sizeof(lvgl_draw_buffer), LV_DISPLAY_RENDER_MODE_DIRECT);
+  lv_display_set_flush_cb(lvgl_display_black, lvgl_flush_callback);
+  lv_display_set_default(lvgl_display_black);
+
+  lvgl_display_red = lv_display_create(400, 300);
+  lv_display_set_buffers(lvgl_display_red, lvgl_draw_buffer, NULL, sizeof(lvgl_draw_buffer), LV_DISPLAY_RENDER_MODE_DIRECT);
+  lv_display_set_flush_cb(lvgl_display_red, lvgl_flush_callback);
 
   lv_obj_t *text_label = lv_label_create(lv_screen_active());
   lv_label_set_long_mode(text_label, LV_LABEL_LONG_WRAP); // Breaks the long lines
   lv_label_set_text(text_label, "Hello, world!");
   lv_obj_set_width(text_label, 150); // Set smaller width to make the lines wrap
   lv_obj_set_style_text_align(text_label, LV_TEXT_ALIGN_CENTER, 0);
-  lv_obj_align(text_label, LV_ALIGN_CENTER, 0, -90);
+  lv_obj_align(text_label, LV_ALIGN_CENTER, -30, -80);
+
+  lv_obj_t *text_labela = lv_label_create(lv_display_get_screen_active(lvgl_display_red));
+  lv_label_set_long_mode(text_labela, LV_LABEL_LONG_WRAP); // Breaks the long lines
+  lv_label_set_text(text_labela, "Hello, world!");
+  lv_obj_set_width(text_labela, 150); // Set smaller width to make the lines wrap
+  lv_obj_set_style_text_align(text_labela, LV_TEXT_ALIGN_CENTER, 0);
+  lv_obj_align(text_labela, LV_ALIGN_CENTER, -20, 90);
 }
 
 void lvgl_flush_callback(lv_display_t *display, const lv_area_t *area, unsigned char *px_map)
@@ -94,23 +107,23 @@ void lvgl_flush_callback(lv_display_t *display, const lv_area_t *area, unsigned 
   Serial.printf("Running flush...\n");
   EPD_dispIndex = 1;
   EPD_Init_4in2_V2();
-  EPD_loadA();
 
-  for (int i = 0; i < 15000; i++)
+  if (display != lvgl_display_black)
   {
-    EPD_SendData((byte)px_map[i]);
+    EPD_SendCommand(0x26); // DATA_START_TRANSMISSION_1
+    for (int i = 0; i < 15000; i++)
+      EPD_SendData((byte)px_map[i]); // Red channel
   }
-
-  // for (int y = area->y1; y <= area->y2; y++)
-  // {
-  //   Serial.printf("Row %d (out of %d-%d), has %d columns\n", y, area->y1, area->y2, area->x2 - area->x1 + 1);
-  //   for (int x = area->x1; x <= area->x2; x++)
-  //   {
-  //     EPD_SendData(px_map[(y - area->y1) * (area->x2 - area->x1 + 1) + (x - area->x1)]);
-  //   }
-  // }
-
+  else
+  {
+    EPD_SendCommand(0x24); // DATA_START_TRANSMISSION_1
+    for (int i = 0; i < 15000; i++)
+      EPD_SendData((byte)px_map[i]); // Black channel
+  }
   EPD_4IN2_V2_Show();
+
+  // Inform the graphics library that the flush is done
+  lv_disp_flush_ready(display);
   Serial.printf("Flush done\n");
 }
 
