@@ -8,6 +8,7 @@
 #include "html.h"    // HTML page of the tool
 #include "epd.h"     // e-Paper driver
 #include "secrets.h" // Wifi credentials, ignored from Git.
+#include "lvgl.h"
 
 // const char* ssid = "Waveshare";
 // const char* password = "password";
@@ -18,6 +19,11 @@ const char *password = WIFI_PASS; //"your password";
 ESP8266WebServer server(80);
 IPAddress myIP; // IP address in your local wifi net
 
+int32_t last_counter = 0;
+lv_display_t *lvgl_display;
+static uint8_t lvgl_draw_buffer[400 * 300 / 8 + 8];
+
+void lvgl_flush_callback(lv_display_t *display, const lv_area_t *area, unsigned char *px_map);
 void EPD_Init();
 void EPD_Load();
 void EPD_Next();
@@ -68,26 +74,64 @@ void setup(void)
   {
     Serial.println("MDNS responder started");
   }
-
-  server.on("/", handleRoot);
-  server.on("/styles.css", sendCSS);
-  server.on("/processingA.js", sendJS_A);
-  server.on("/processingB.js", sendJS_B);
-  server.on("/processingC.js", sendJS_C);
-  server.on("/processingD.js", sendJS_D);
-  server.on("/LOAD", EPD_Load);
-  server.on("/EPD", EPD_Init);
-  server.on("/NEXT", EPD_Next);
-  server.on("/SHOW", EPD_Show);
-  server.onNotFound(handleNotFound);
-
-  server.begin();
   Serial.println("HTTP server started");
+
+  lv_init();
+  lvgl_display = lv_display_create(400, 300);
+  lv_display_set_buffers(lvgl_display, lvgl_draw_buffer, NULL, sizeof(lvgl_draw_buffer), LV_DISPLAY_RENDER_MODE_DIRECT);
+  lv_display_set_flush_cb(lvgl_display, lvgl_flush_callback);
+
+  lv_obj_t *text_label = lv_label_create(lv_screen_active());
+  lv_label_set_long_mode(text_label, LV_LABEL_LONG_WRAP); // Breaks the long lines
+  lv_label_set_text(text_label, "Hello, world!");
+  lv_obj_set_width(text_label, 150); // Set smaller width to make the lines wrap
+  lv_obj_set_style_text_align(text_label, LV_TEXT_ALIGN_CENTER, 0);
+  lv_obj_align(text_label, LV_ALIGN_CENTER, 0, -90);
+}
+
+void lvgl_flush_callback(lv_display_t *display, const lv_area_t *area, unsigned char *px_map)
+{
+  Serial.printf("Running flush...\n");
+  EPD_dispIndex = 1;
+  EPD_Init_4in2_V2();
+  EPD_loadA();
+
+  for (int i = 0; i < 15000; i++)
+  {
+    EPD_SendData((byte)px_map[i]);
+  }
+
+  // for (int y = area->y1; y <= area->y2; y++)
+  // {
+  //   Serial.printf("Row %d (out of %d-%d), has %d columns\n", y, area->y1, area->y2, area->x2 - area->x1 + 1);
+  //   for (int x = area->x1; x <= area->x2; x++)
+  //   {
+  //     EPD_SendData(px_map[(y - area->y1) * (area->x2 - area->x1 + 1) + (x - area->x1)]);
+  //   }
+  // }
+
+  EPD_4IN2_V2_Show();
+  Serial.printf("Flush done\n");
 }
 
 void loop(void)
 {
-  server.handleClient();
+  // int32_t counter;
+  // asm volatile("rsr %0, ccount" : "=r"(counter));
+  // if (last_counter > counter)
+  // {
+  //   Serial.println("Counter overflow");
+  //   lv_tick_inc((0xFFFFFFFF - last_counter + counter) / 80000);
+  // }
+  // else
+  // {
+  //   lv_tick_inc((counter - last_counter) / 80000);
+  // }
+  // last_counter = counter;
+  lv_task_handler();
+  lv_timer_handler();
+  lv_tick_inc(5);
+  delay(5);
 }
 
 void EPD_Init()
