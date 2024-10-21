@@ -36,8 +36,12 @@
 #define BUSY_PIN 5
 
 /* Pin level definition ------------------------------------------------------*/
+#ifndef LOW
 #define LOW 0
+#endif
+#ifndef HIGH
 #define HIGH 1
+#endif
 
 #define GPIO_PIN_SET 1
 #define GPIO_PIN_RESET 0
