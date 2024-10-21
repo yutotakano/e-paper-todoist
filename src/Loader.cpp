@@ -79,12 +79,14 @@ void setup(void)
 
   lv_init();
   lvgl_display_black = lv_display_create(400, 300);
-  lv_display_set_buffers(lvgl_display_black, lvgl_draw_buffer, NULL, sizeof(lvgl_draw_buffer), LV_DISPLAY_RENDER_MODE_DIRECT);
+  lv_display_set_color_format(lvgl_display_black, LV_COLOR_FORMAT_I1);
+  lv_display_set_buffers(lvgl_display_black, lvgl_draw_buffer, NULL, sizeof(lvgl_draw_buffer), LV_DISPLAY_RENDER_MODE_PARTIAL);
   lv_display_set_flush_cb(lvgl_display_black, lvgl_flush_callback);
   lv_display_set_default(lvgl_display_black);
 
   lvgl_display_red = lv_display_create(400, 300);
-  lv_display_set_buffers(lvgl_display_red, lvgl_draw_buffer, NULL, sizeof(lvgl_draw_buffer), LV_DISPLAY_RENDER_MODE_DIRECT);
+  lv_display_set_color_format(lvgl_display_red, LV_COLOR_FORMAT_I1);
+  lv_display_set_buffers(lvgl_display_red, lvgl_draw_buffer2, NULL, sizeof(lvgl_draw_buffer2), LV_DISPLAY_RENDER_MODE_PARTIAL);
   lv_display_set_flush_cb(lvgl_display_red, lvgl_flush_callback);
 
   lv_obj_t *text_label = lv_label_create(lv_screen_active());
@@ -102,83 +104,61 @@ void setup(void)
   lv_obj_align(text_labela, LV_ALIGN_CENTER, -20, 90);
 }
 
+bool first = true;
+
 void lvgl_flush_callback(lv_display_t *display, const lv_area_t *area, unsigned char *px_map)
 {
-  Serial.printf("Running flush...\n");
-  EPD_dispIndex = 1;
-  EPD_Init_4in2_V2();
+  px_map += 8; // Skip the first 8 bytes since it is LVGL metadata
+
+  Serial.printf("Running flush for %s (%d->%d, %d->%d)...\n", display == lvgl_display_black ? "black" : "red", area->x1, area->x2, area->y1, area->y2);
+  if (first)
+  {
+    EPD_dispIndex = 1;
+    EPD_Init_4in2_V2();
+    Serial.printf("Init done\n");
+    first = false;
+  }
+
+  EPD_Send_1(0x4E, area->x1 & 0x3F);
+  EPD_Send_2(0x4F, area->y1 & 0xFF, (area->y1 >> 8) & 0xFF);
 
   if (display != lvgl_display_black)
   {
-    EPD_SendCommand(0x26); // DATA_START_TRANSMISSION_1
-    for (int i = 0; i < 15000; i++)
-      EPD_SendData((byte)px_map[i]); // Red channel
+    EPD_SendCommand(0x26); // Start RED transmission
   }
   else
   {
-    EPD_SendCommand(0x24); // DATA_START_TRANSMISSION_1
-    for (int i = 0; i < 15000; i++)
-      EPD_SendData((byte)px_map[i]); // Black channel
+    EPD_SendCommand(0x24); // Start BW transmission
   }
-  EPD_4IN2_V2_Show();
-
-  // Inform the graphics library that the flush is done
-  lv_disp_flush_ready(display);
-  Serial.printf("Flush done\n");
-}
-
-void loop(void)
-{
-  // int32_t counter;
-  // asm volatile("rsr %0, ccount" : "=r"(counter));
-  // if (last_counter > counter)
-  // {
-  //   Serial.println("Counter overflow");
-  //   lv_tick_inc((0xFFFFFFFF - last_counter + counter) / 80000);
-  // }
-  // else
-  // {
-  //   lv_tick_inc((counter - last_counter) / 80000);
-  // }
-  // last_counter = counter;
-  lv_task_handler();
-  lv_timer_handler();
-  lv_tick_inc(5);
-  delay(5);
-}
-
-void EPD_Init()
-{
-  EPD_dispIndex = ((int)server.arg(0)[0] - 'a') + (((int)server.arg(0)[1] - 'a') << 4);
-  // Print log message: initialization of e-Paper (e-Paper's type)
-  Serial.printf("EPD %s\r\n", EPD_dispMass[EPD_dispIndex].title);
-
-  // Initialization
-  EPD_dispInit();
-  Serial.printf("Init done");
-  server.send(200, "text/plain", "Init ok\r\n");
-}
-
-void EPD_Load()
-{
-  // server.arg(0) = data+data.length+'LOAD'
-  String p = server.arg(0);
-  if (p.endsWith("LOAD"))
+  for (int32_t i = 0; i < 1500; i++)
   {
-    Serial.println("LOAD");
-    int index = p.length() - 8;
-    int L = ((int)p[index] - 'a') + (((int)p[index + 1] - 'a') << 4) + (((int)p[index + 2] - 'a') << 8) + (((int)p[index + 3] - 'a') << 12);
-    if (L == (p.length() - 8))
+    if (i % (area->x2 - area->x1 + 1) == 0 && (area->x2 != 399 || area->x1 != 0))
     {
-      Serial.println("LOAD");
-      // if there is loading function for current channel (black or red)
-      // Load data into the e-Paper
-      if (EPD_dispLoad != 0)
-        EPD_dispLoad();
+      // New line of this area (and it's not the whole width), so send 0x4E to set x pos
+      EPD_Send_1(0x4E, area->x1 & 0x3F);
+      int32_t y = area->y1 + i / (area->x2 - area->x1 + 1);
+      EPD_Send_2(0x4F, y & 0xFF, (y >> 8) & 0xFF);
     }
+    EPD_SendData((byte)px_map[i]); // Red channel
   }
-  Serial.println("LOAD ok");
-  server.send(200, "text/plain", "Load ok\r\n");
+  Serial.printf("Sending data done\n");
+
+  if (lv_display_flush_is_last(display))
+  {
+    EPD_SendCommand(0x22);
+    EPD_SendData(0xF7);
+    EPD_SendCommand(0x20);
+    EPD_WaitUntilIdle_high();
+    Serial.printf("Flush done\n");
+
+    Serial.printf("Entering deep sleep\n");
+    EPD_SendCommand(0x10); // DEEP_SLEEP
+    EPD_SendData(0x01);
+    first = true;
+  }
+  Serial.printf("Flush done, informing ready\n");
+  // Inform the graphics library that the flush is done
+  lv_display_flush_ready(display);
 }
 
 void EPD_Next()

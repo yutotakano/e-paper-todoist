@@ -26,8 +26,6 @@
 
 #include <SPI.h>
 
-extern ESP8266WebServer server;
-
 /* SPI pin definition --------------------------------------------------------*/
 // SPI pin definition
 #define PIN_SPI_SCK 14
