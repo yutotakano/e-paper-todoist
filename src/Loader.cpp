@@ -1,11 +1,9 @@
 #include <Arduino.h>
 #include <ESP8266WiFi.h>
+#include <ESP8266WiFiMulti.h>
 #include <WiFiClient.h>
-#include <ESP8266WebServer.h>
-#include <ESP8266mDNS.h>
-#include "scripts.h" // JavaScript code
-#include "css.h"     // Cascading Style Sheets
-#include "html.h"    // HTML page of the tool
+#include <ESP8266HTTPClient.h>
+#include <WiFiClientSecureBearSSL.h>
 #include "epd.h"     // e-Paper driver
 #include "secrets.h" // Wifi credentials, ignored from Git.
 #include "lvgl.h"
@@ -16,35 +14,33 @@
 // const char* password = "qq330447168";
 const char *ssid = WIFI_SSID;     //"your ssid";
 const char *password = WIFI_PASS; //"your password";
-ESP8266WebServer server(80);
-IPAddress myIP; // IP address in your local wifi net
+IPAddress myIP;                   // IP address in your local wifi net
 
-int32_t last_counter = 0;
+ESP8266WiFiMulti WiFiMulti;
+std::unique_ptr<BearSSL::WiFiClientSecure> client(new BearSSL::WiFiClientSecure);
+HTTPClient https;
+
 lv_display_t *lvgl_display_black;
 lv_display_t *lvgl_display_red;
-static uint8_t lvgl_draw_buffer[400 * 300 / 8 + 8];
+static uint8_t lvgl_draw_buffer[1500 + 8];
+static uint8_t lvgl_draw_buffer2[1500 + 8]; // 400 * 300 / 80
+lv_obj_t *text_labela;
 
 void lvgl_flush_callback(lv_display_t *display, const lv_area_t *area, unsigned char *px_map);
-void EPD_Init();
-void EPD_Load();
-void EPD_Next();
-void EPD_Show();
-void handleNotFound();
 
 void setup(void)
 {
-
   Serial.begin(115200);
   WiFi.mode(WIFI_STA);
-  WiFi.begin(ssid, password);
+  WiFiMulti.addAP(ssid, password);
 
   // Static IP setting---by Lin
-  wifi_station_dhcpc_stop();
-  struct ip_info info;
-  IP4_ADDR(&info.ip, 192, 168, 1, 189);
-  IP4_ADDR(&info.gw, 192, 168, 1, 1);
-  IP4_ADDR(&info.netmask, 255, 255, 255, 0);
-  wifi_set_ip_info(STATION_IF, &info);
+  // wifi_station_dhcpc_stop();
+  // struct ip_info info;
+  // IP4_ADDR(&info.ip, 192, 168, 1, 189);
+  // IP4_ADDR(&info.gw, 192, 168, 1, 1);
+  // IP4_ADDR(&info.netmask, 255, 255, 255, 0);
+  // wifi_set_ip_info(STATION_IF, &info);
 
   // Connect to WiFi network
   Serial.println("");
@@ -62,7 +58,10 @@ void setup(void)
   //   SPI.begin();
 
   // Wait for connection
-  while (WiFi.status() != WL_CONNECTED)
+  client->setInsecure();
+  client->setBufferSizes(512, 512);
+
+  while (WiFiMulti.run() != WL_CONNECTED)
   {
     delay(500);
     Serial.print(".");
@@ -71,11 +70,10 @@ void setup(void)
   Serial.print("\r\nIP address: ");
   Serial.println(myIP = WiFi.localIP());
 
-  if (MDNS.begin("esp8266"))
-  {
-    Serial.println("MDNS responder started");
-  }
-  Serial.println("HTTP server started");
+  // if (MDNS.begin("esp8266"))
+  // {
+  //   Serial.println("MDNS responder started");
+  // }
 
   lv_init();
   lvgl_display_black = lv_display_create(400, 300);
@@ -89,16 +87,9 @@ void setup(void)
   lv_display_set_buffers(lvgl_display_red, lvgl_draw_buffer2, NULL, sizeof(lvgl_draw_buffer2), LV_DISPLAY_RENDER_MODE_PARTIAL);
   lv_display_set_flush_cb(lvgl_display_red, lvgl_flush_callback);
 
-  lv_obj_t *text_label = lv_label_create(lv_screen_active());
-  lv_label_set_long_mode(text_label, LV_LABEL_LONG_WRAP); // Breaks the long lines
-  lv_label_set_text(text_label, "Hello, world!");
-  lv_obj_set_width(text_label, 150); // Set smaller width to make the lines wrap
-  lv_obj_set_style_text_align(text_label, LV_TEXT_ALIGN_CENTER, 0);
-  lv_obj_align(text_label, LV_ALIGN_CENTER, -30, -80);
-
-  lv_obj_t *text_labela = lv_label_create(lv_display_get_screen_active(lvgl_display_red));
+  text_labela = lv_label_create(lv_display_get_screen_active(lvgl_display_red));
   lv_label_set_long_mode(text_labela, LV_LABEL_LONG_WRAP); // Breaks the long lines
-  lv_label_set_text(text_labela, "Hello, world!");
+  lv_label_set_text(text_labela, "Hello, my display!?!");
   lv_obj_set_width(text_labela, 150); // Set smaller width to make the lines wrap
   lv_obj_set_style_text_align(text_labela, LV_TEXT_ALIGN_CENTER, 0);
   lv_obj_align(text_labela, LV_ALIGN_CENTER, -20, 90);
@@ -161,57 +152,69 @@ void lvgl_flush_callback(lv_display_t *display, const lv_area_t *area, unsigned 
   lv_display_flush_ready(display);
 }
 
-void EPD_Next()
-{
-  Serial.println("NEXT");
+lv_obj_t *text_label = NULL;
 
-  // Instruction code for for writting data into
-  // e-Paper's memory
-  int code = EPD_dispMass[EPD_dispIndex].next;
-  if (EPD_dispIndex == 34)
+void loop(void)
+{
+  String text;
+  if (WiFiMulti.run() == WL_CONNECTED)
   {
-    if (flag == 0)
-      code = 0x26;
+    Serial.print("[HTTPS] begin...\n");
+    if (https.begin(*client, "http://example.com"))
+    { // HTTPS
+      Serial.printf("MFLN status: %s\n", client->getMFLNStatus() ? "true" : "false");
+      Serial.print("[HTTPS] GET...\n");
+      // https.addHeader("Authorization", "Bearer 0123456789abc");
+
+      // start connection and send HTTP header
+      int httpCode = https.GET();
+
+      // httpCode will be negative on error
+      if (httpCode > 0)
+      {
+        // HTTP header has been send and Server response header has been handled
+        Serial.printf("[HTTPS] GET... code: %d\n", httpCode);
+
+        // file found at server
+        if (httpCode == HTTP_CODE_OK || httpCode == HTTP_CODE_MOVED_PERMANENTLY)
+        {
+          text = https.getString();
+          Serial.println(text);
+        }
+        else
+        {
+          text = https.errorToString(httpCode);
+        }
+      }
+      else
+      {
+        Serial.printf("[HTTPS] GET... failed, error: %s\n", https.errorToString(httpCode).c_str());
+        // get last ssl error
+        char error_buf[100];
+        client->getLastSSLError(error_buf, 100);
+
+        text = String("[HTTPS] \n") + String(error_buf);
+      }
+
+      https.end();
+    }
     else
-      code = 0x13;
+    {
+      text = String("[HTTPS] Unable to connect\n");
+    }
   }
 
-  // If the instruction code isn't '-1', then...
-  if (code != -1)
+  if (!text_label)
   {
-    // Do the selection of the next data channel
-    EPD_SendCommand(code);
-    delay(2);
+    text_label = lv_label_create(lv_screen_active());
+    lv_label_set_long_mode(text_label, LV_LABEL_LONG_WRAP); // Breaks the long lines
+    lv_obj_set_width(text_label, 150);                      // Set smaller width to make the lines wrap
+    lv_obj_set_style_text_align(text_label, LV_TEXT_ALIGN_CENTER, 0);
+    lv_obj_align(text_label, LV_ALIGN_CENTER, -30, -80);
   }
-  // Setup the function for loading choosen channel's data
-  EPD_dispLoad = EPD_dispMass[EPD_dispIndex].chRd;
+  lv_label_set_text(text_label, text.c_str());
 
-  server.send(200, "text/plain", "Next ok\r\n");
-}
-
-void EPD_Show()
-{
-  Serial.println("\r\nSHOW\r\n");
-  // Show results and Sleep
-  EPD_dispMass[EPD_dispIndex].show();
-  server.send(200, "text/plain", "Show ok\r\n");
-}
-
-void handleNotFound()
-{
-  String message = "File Not Found\n\n";
-  message += "URI: ";
-  message += server.uri();
-  message += "\nMethod: ";
-  message += (server.method() == HTTP_GET) ? "GET" : "POST";
-  message += "\nArguments: ";
-  message += server.args();
-  message += "\n";
-  for (uint8_t i = 0; i < server.args(); i++)
-  {
-    message += " " + server.argName(i) + ": " + server.arg(i) + "\n";
-  }
-  server.send(200, "text/plain", message);
-  Serial.print("Unknown URI: ");
-  Serial.println(server.uri());
+  lv_timer_handler();
+  lv_tick_inc(60000);
+  delay(60000);
 }

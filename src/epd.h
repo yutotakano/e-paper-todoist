@@ -243,53 +243,6 @@ int EPD_dispIndex;        // The index of the e-Paper's type
 int EPD_dispX, EPD_dispY; // Current pixel's coordinates (for 2.13 only)
 void (*EPD_dispLoad)();   // Pointer on a image data writting function
 
-/* Image data loading function for a-type e-Paper ----------------------------*/
-void EPD_loadA()
-{
-    Serial.print("\r\n EPD_loadA");
-    int index = 0;
-    String p = server.arg(0);
-
-    // Get the length of the image data begin
-    int DataLength = p.length() - 8;
-
-    // Enumerate all of image data bytes
-    while (index < DataLength)
-    {
-        // Get current byte
-        int value = ((int)p[index] - 'a') + (((int)p[index + 1] - 'a') << 4);
-
-        // Write the byte into e-Paper's memory
-        EPD_SendData((byte)value);
-
-        // Increment the current byte index on 2 characters
-        index += 2;
-    }
-}
-
-void EPD_loadAFilp()
-{
-    Serial.print("\r\n EPD_loadA");
-    int index = 0;
-    String p = server.arg(0);
-
-    // Get the length of the image data begin
-    int DataLength = p.length() - 8;
-
-    // Enumerate all of image data bytes
-    while (index < DataLength)
-    {
-        // Get current byte
-        int value = ((int)p[index] - 'a') + (((int)p[index + 1] - 'a') << 4);
-
-        // Write the byte into e-Paper's memory
-        EPD_SendData(~(byte)value);
-
-        // Increment the current byte index on 2 characters
-        index += 2;
-    }
-}
-
 /* Show image and turn to deep sleep mode (a-type, 4.2 and 2.7 e-Paper) ------*/
 void EPD_showA()
 {
@@ -305,34 +258,3 @@ void EPD_showA()
     EPD_WaitUntilIdle();
 }
 #include "epd4in2.h"
-
-/* The set of pointers on 'init', 'load' and 'show' functions, title and code */
-struct EPD_dispInfo
-{
-    int (*init)();  // Initialization
-    void (*chBk)(); // Black channel loading
-    int next;       // Change channel code
-    void (*chRd)(); // Red channel loading
-    void (*show)(); // Show and sleep
-    char *title;    // Title of an e-Paper
-};
-
-/* Array of sets describing the usage of e-Papers ----------------------------*/
-EPD_dispInfo EPD_dispMass[] = {
-    {EPD_Init_4in2b_V2, EPD_loadA, -1, EPD_4IN2B_V2_load, EPD_4IN2B_V2_Show, (char *)"4.2 inch b V2"}, // 34
-    {EPD_Init_4in2_V2, EPD_loadA, -1, 0, EPD_4IN2_V2_Show, (char *)"4.2 inch V2"},                     // 44
-};
-
-/* Initialization of an e-Paper ----------------------------------------------*/
-void EPD_dispInit()
-{
-    // Call initialization function
-    EPD_dispMass[EPD_dispIndex].init();
-
-    // Set loading function for black channel
-    EPD_dispLoad = EPD_dispMass[EPD_dispIndex].chBk;
-
-    // Set initial coordinates
-    EPD_dispX = 0;
-    EPD_dispY = 0;
-}
