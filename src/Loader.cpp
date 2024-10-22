@@ -1,7 +1,6 @@
 #include <Arduino.h>
 #include <ESP8266WiFi.h>
 #include <ESP8266WiFiMulti.h>
-#include <WiFiClient.h>
 #include <ESP8266HTTPClient.h>
 #include <WiFiClientSecureBearSSL.h>
 #include "epd.h"     // e-Paper driver
@@ -12,9 +11,9 @@
 // const char* password = "password";
 // const char* ssid = "TheHome";
 // const char* password = "qq330447168";
-const char *ssid = WIFI_SSID;     //"your ssid";
-const char *password = WIFI_PASS; //"your password";
-IPAddress myIP;                   // IP address in your local wifi net
+const char *ssid PROGMEM = WIFI_SSID;     //"your ssid";
+const char *password PROGMEM = WIFI_PASS; //"your password";
+IPAddress myIP;                           // IP address in your local wifi net
 
 ESP8266WiFiMulti WiFiMulti;
 std::unique_ptr<BearSSL::WiFiClientSecure> client(new BearSSL::WiFiClientSecure);
@@ -22,8 +21,9 @@ HTTPClient https;
 
 lv_display_t *lvgl_display_black;
 lv_display_t *lvgl_display_red;
-static uint8_t lvgl_draw_buffer[1500 + 8];
-static uint8_t lvgl_draw_buffer2[1500 + 8]; // 400 * 300 / 80
+#define DRAW_BUFFER_SIZE 400
+static uint8_t lvgl_draw_buffer[DRAW_BUFFER_SIZE + 8];
+// static uint8_t lvgl_draw_buffer2[1500 + 8]; // 400 * 300 / 80
 lv_obj_t *text_labela;
 
 void lvgl_flush_callback(lv_display_t *display, const lv_area_t *area, unsigned char *px_map);
@@ -43,9 +43,9 @@ void setup(void)
   // wifi_set_ip_info(STATION_IF, &info);
 
   // Connect to WiFi network
-  Serial.println("");
-  Serial.println("");
-  Serial.print("Connected to ");
+  Serial.println(F(""));
+  Serial.println(F(""));
+  Serial.print(F("Connected to "));
   Serial.println(ssid);
 
   // SPI initialization
@@ -59,7 +59,7 @@ void setup(void)
 
   // Wait for connection
   client->setInsecure();
-  client->setBufferSizes(512, 512);
+  client->setBufferSizes(1024, 512);
 
   while (WiFiMulti.run() != WL_CONNECTED)
   {
@@ -67,13 +67,8 @@ void setup(void)
     Serial.print(".");
   }
 
-  Serial.print("\r\nIP address: ");
+  Serial.print(F("\nIP address: "));
   Serial.println(myIP = WiFi.localIP());
-
-  // if (MDNS.begin("esp8266"))
-  // {
-  //   Serial.println("MDNS responder started");
-  // }
 
   lv_init();
   lvgl_display_black = lv_display_create(400, 300);
@@ -84,7 +79,7 @@ void setup(void)
 
   lvgl_display_red = lv_display_create(400, 300);
   lv_display_set_color_format(lvgl_display_red, LV_COLOR_FORMAT_I1);
-  lv_display_set_buffers(lvgl_display_red, lvgl_draw_buffer2, NULL, sizeof(lvgl_draw_buffer2), LV_DISPLAY_RENDER_MODE_PARTIAL);
+  lv_display_set_buffers(lvgl_display_red, lvgl_draw_buffer, NULL, sizeof(lvgl_draw_buffer), LV_DISPLAY_RENDER_MODE_PARTIAL);
   lv_display_set_flush_cb(lvgl_display_red, lvgl_flush_callback);
 
   text_labela = lv_label_create(lv_display_get_screen_active(lvgl_display_red));
@@ -101,12 +96,12 @@ void lvgl_flush_callback(lv_display_t *display, const lv_area_t *area, unsigned 
 {
   px_map += 8; // Skip the first 8 bytes since it is LVGL metadata
 
-  Serial.printf("Running flush for %s (%d->%d, %d->%d)...\n", display == lvgl_display_black ? "black" : "red", area->x1, area->x2, area->y1, area->y2);
+  // Serial.printf("Running flush for %s (%d->%d, %d->%d)...\n", display == lvgl_display_black ? "black" : "red", area->x1, area->x2, area->y1, area->y2);
   if (first)
   {
     EPD_dispIndex = 1;
     EPD_Init_4in2_V2();
-    Serial.printf("Init done\n");
+    // Serial.printf("Init done\n");
     first = false;
   }
 
@@ -121,7 +116,7 @@ void lvgl_flush_callback(lv_display_t *display, const lv_area_t *area, unsigned 
   {
     EPD_SendCommand(0x24); // Start BW transmission
   }
-  for (int32_t i = 0; i < 1500; i++)
+  for (int32_t i = 0; i < DRAW_BUFFER_SIZE; i++)
   {
     if (i % (area->x2 - area->x1 + 1) == 0 && (area->x2 != 399 || area->x1 != 0))
     {
@@ -132,7 +127,7 @@ void lvgl_flush_callback(lv_display_t *display, const lv_area_t *area, unsigned 
     }
     EPD_SendData((byte)px_map[i]); // Red channel
   }
-  Serial.printf("Sending data done\n");
+  // Serial.printf("Sending data done\n");
 
   if (lv_display_flush_is_last(display))
   {
@@ -140,31 +135,38 @@ void lvgl_flush_callback(lv_display_t *display, const lv_area_t *area, unsigned 
     EPD_SendData(0xF7);
     EPD_SendCommand(0x20);
     EPD_WaitUntilIdle_high();
-    Serial.printf("Flush done\n");
+    // Serial.printf("Flush done\n");
 
-    Serial.printf("Entering deep sleep\n");
+    // Serial.printf("Entering deep sleep\n");
     EPD_SendCommand(0x10); // DEEP_SLEEP
     EPD_SendData(0x01);
     first = true;
   }
-  Serial.printf("Flush done, informing ready\n");
+  // Serial.printf("Flush done, informing ready\n");
   // Inform the graphics library that the flush is done
   lv_display_flush_ready(display);
 }
 
 lv_obj_t *text_label = NULL;
+char text[256];
 
 void loop(void)
 {
-  String text;
   if (WiFiMulti.run() == WL_CONNECTED)
   {
-    Serial.print("[HTTPS] begin...\n");
-    if (https.begin(*client, "http://example.com"))
+    Serial.print(F("[HTTPS] begin...\n"));
+    if (https.begin(*client, F(TODOIST_ENDPOINT)))
     { // HTTPS
-      Serial.printf("MFLN status: %s\n", client->getMFLNStatus() ? "true" : "false");
-      Serial.print("[HTTPS] GET...\n");
-      // https.addHeader("Authorization", "Bearer 0123456789abc");
+      if (client->getMFLNStatus() == 1)
+      {
+        Serial.print(F("[HTTPS] MFLN enabled\n"));
+      }
+      else
+      {
+        Serial.print(F("[HTTPS] MFLN not enabled\n"));
+      }
+      Serial.print(F("[HTTPS] GET...\n"));
+      https.addHeader("Authorization", F(TODOIST_BEARER));
 
       // start connection and send HTTP header
       int httpCode = https.GET();
@@ -178,31 +180,33 @@ void loop(void)
         // file found at server
         if (httpCode == HTTP_CODE_OK || httpCode == HTTP_CODE_MOVED_PERMANENTLY)
         {
-          text = https.getString();
-          Serial.println(text);
+          https.writeToStream(&Serial);
         }
         else
         {
-          text = https.errorToString(httpCode);
+          strcpy(text, https.getString().c_str());
+          // text = https.errorToString(httpCode).c_str();
         }
       }
       else
       {
         Serial.printf("[HTTPS] GET... failed, error: %s\n", https.errorToString(httpCode).c_str());
         // get last ssl error
-        char error_buf[100];
-        client->getLastSSLError(error_buf, 100);
-
-        text = String("[HTTPS] \n") + String(error_buf);
+        char error_buf[256];
+        client->getLastSSLError(error_buf, sizeof(error_buf));
+        strcpy(text, "[HTTPS] \n");
+        strcpy(text + 9, error_buf);
       }
 
       https.end();
     }
     else
     {
-      text = String("[HTTPS] Unable to connect\n");
+      strcpy(text, "[HTTPS] Unable to connect\n");
     }
   }
+  Serial.println(F("Done"));
+  Serial.println(text);
 
   if (!text_label)
   {
@@ -210,9 +214,9 @@ void loop(void)
     lv_label_set_long_mode(text_label, LV_LABEL_LONG_WRAP); // Breaks the long lines
     lv_obj_set_width(text_label, 150);                      // Set smaller width to make the lines wrap
     lv_obj_set_style_text_align(text_label, LV_TEXT_ALIGN_CENTER, 0);
-    lv_obj_align(text_label, LV_ALIGN_CENTER, -30, -80);
+    lv_obj_align(text_label, LV_ALIGN_CENTER, 0, -80);
   }
-  lv_label_set_text(text_label, text.c_str());
+  lv_label_set_text(text_label, text);
 
   lv_timer_handler();
   lv_tick_inc(60000);
