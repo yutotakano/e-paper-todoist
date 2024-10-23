@@ -17,7 +17,7 @@ const char *ssid PROGMEM = WIFI_SSID;     //"your ssid";
 const char *password PROGMEM = WIFI_PASS; //"your password";
 IPAddress myIP;                           // IP address in your local wifi net
 
-std::unique_ptr<BearSSL::WiFiClientSecure> client(new BearSSL::WiFiClientSecure);
+BearSSL::WiFiClientSecure client;
 HTTPClient https;
 
 lv_display_t *lvgl_display_black;
@@ -78,8 +78,8 @@ void setup(void)
   //   SPI.begin();
 
   // Wait for connection
-  client->setInsecure();
-  client->setBufferSizes(512, 512);
+  client.setInsecure();
+  client.setBufferSizes(512, 512);
 
   while (WiFi.status() != WL_CONNECTED)
   {
@@ -212,7 +212,7 @@ void lvgl_flush_callback(lv_display_t *display, const lv_area_t *area, unsigned 
     EPD_WaitUntilIdle_high();
     // Serial.printf("Flush done\n");
 
-    // Serial.printf("Entering deep sleep\n");
+    Serial.printf("Entering deep sleep\n");
     EPD_SendCommand(0x10); // DEEP_SLEEP
     EPD_SendData(0x01);
     first = true;
@@ -228,7 +228,7 @@ void update_tasks(lv_timer_t *timer)
   if (WiFi.status() == WL_CONNECTED)
   {
     Serial.print(F("[HTTPS] begin...\n"));
-    if (https.begin(*client, F(TODOIST_ENDPOINT)))
+    if (https.begin(client, F(TODOIST_ENDPOINT)))
     {
       Serial.print(F("[HTTPS] GET...\n"));
       https.addHeader("Authorization", F(TODOIST_BEARER));
@@ -261,11 +261,10 @@ void update_tasks(lv_timer_t *timer)
       }
       else
       {
-        char text[100];
+        char text[256];
         Serial.printf("[HTTPS] GET... failed, error: %s\n", https.errorToString(httpCode).c_str());
         // get last ssl error
-        strcpy(text, "[HTTPS] \n");
-        client->getLastSSLError(text + 9, sizeof(text) - 9);
+        client.getLastSSLError(text, sizeof(text));
         lv_label_set_text(first_task_content, text);
       }
 
