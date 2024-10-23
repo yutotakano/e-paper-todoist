@@ -3,7 +3,12 @@
 #include <WiFiClientSecureBearSSL.h>
 #include "epd.h"     // e-Paper driver
 #include "secrets.h" // Wifi credentials, ignored from Git.
-#include "lvgl.h"
+#include "lvgl/lvgl.h"
+#include "todoist_json_print.h"
+#include "time.h"
+#include "neuton_28_digits.c"
+
+LV_FONT_DECLARE(neuton_28_digits);
 
 // const char* ssid = "Waveshare";
 // const char* password = "password";
@@ -18,16 +23,27 @@ HTTPClient https;
 
 lv_display_t *lvgl_display_black;
 lv_display_t *lvgl_display_red;
-#define DRAW_BUFFER_SIZE 400
+#define DRAW_BUFFER_SIZE 200
 static uint8_t lvgl_draw_buffer[DRAW_BUFFER_SIZE + 8];
-// static uint8_t lvgl_draw_buffer2[1500 + 8]; // 400 * 300 / 80
-lv_obj_t *text_labela;
+
+// Layout
+lv_obj_t *list_container;
+lv_obj_t *first_task_content;
+lv_obj_t *first_task_due;
+lv_obj_t *second_task_content;
+lv_obj_t *second_task_due;
+lv_style_t current_time_style;
+lv_obj_t *current_time_text;
+
+TodoistJsonPrint todoistJsonPrint;
 
 void lvgl_flush_callback(lv_display_t *display, const lv_area_t *area, unsigned char *px_map);
 
 void setup(void)
 {
   Serial.begin(115200);
+
+  // Set wifi up
   WiFi.mode(WIFI_STA);
   WiFi.begin(ssid, password);
 
@@ -56,7 +72,7 @@ void setup(void)
 
   // Wait for connection
   client->setInsecure();
-  client->setBufferSizes(1024, 512);
+  client->setBufferSizes(512, 512);
 
   while (WiFi.status() != WL_CONNECTED)
   {
@@ -64,9 +80,14 @@ void setup(void)
     Serial.print(".");
   }
 
+  // Set time up
+  configTime(TIMEZONE, "pool.ntp.org", "time.nist.gov");
+  time(nullptr);
+
   Serial.print(F("\nIP address: "));
   Serial.println(myIP = WiFi.localIP());
 
+  // Set lvgl up
   lv_init();
   lvgl_display_black = lv_display_create(400, 300);
   lv_display_set_color_format(lvgl_display_black, LV_COLOR_FORMAT_I1);
@@ -79,12 +100,35 @@ void setup(void)
   lv_display_set_buffers(lvgl_display_red, lvgl_draw_buffer, NULL, sizeof(lvgl_draw_buffer), LV_DISPLAY_RENDER_MODE_PARTIAL);
   lv_display_set_flush_cb(lvgl_display_red, lvgl_flush_callback);
 
-  text_labela = lv_label_create(lv_display_get_screen_active(lvgl_display_red));
-  lv_label_set_long_mode(text_labela, LV_LABEL_LONG_WRAP); // Breaks the long lines
-  lv_label_set_text(text_labela, "Hello, my display!?!");
-  lv_obj_set_width(text_labela, 150); // Set smaller width to make the lines wrap
-  lv_obj_set_style_text_align(text_labela, LV_TEXT_ALIGN_CENTER, 0);
-  lv_obj_align(text_labela, LV_ALIGN_CENTER, -20, 90);
+  list_container = lv_obj_create(lv_screen_active());
+  lv_obj_set_size(list_container, 400, 300);
+  lv_obj_set_flex_flow(list_container, LV_FLEX_FLOW_COLUMN);
+
+  first_task_content = lv_label_create(list_container);
+  lv_label_set_long_mode(first_task_content, LV_LABEL_LONG_WRAP); // Breaks the long lines
+  lv_label_set_text(first_task_content, "Placeholder Task 1");
+  lv_obj_set_width(first_task_content, 300); // Set smaller width to make the lines wrap
+  lv_obj_set_style_text_align(first_task_content, LV_TEXT_ALIGN_LEFT, 0);
+
+  first_task_due = lv_label_create(list_container);
+  lv_label_set_text(first_task_due, "Due: 2021-01-01");
+
+  second_task_content = lv_label_create(list_container);
+  lv_label_set_long_mode(second_task_content, LV_LABEL_LONG_WRAP); // Breaks the long lines
+  lv_label_set_text(second_task_content, "Placeholder Task 2");
+  lv_obj_set_width(second_task_content, 300); // Set smaller width to make the lines wrap
+  lv_obj_set_style_text_align(second_task_content, LV_TEXT_ALIGN_LEFT, 0);
+
+  second_task_due = lv_label_create(list_container);
+  lv_label_set_text(second_task_due, "Due: 2021-01-01");
+
+  lv_style_init(&current_time_style);
+  lv_style_set_text_font(&current_time_style, &neuton_28_digits);
+  current_time_text = lv_label_create(lv_display_get_screen_active(lvgl_display_red));
+  lv_obj_add_style(current_time_text, &current_time_style, 0);
+  lv_label_set_text(current_time_text, "00:00");
+  lv_obj_set_style_text_align(current_time_text, LV_TEXT_ALIGN_CENTER, 0);
+  lv_obj_align(current_time_text, LV_ALIGN_BOTTOM_MID, 0, 10);
 }
 
 bool first = true;
@@ -144,11 +188,9 @@ void lvgl_flush_callback(lv_display_t *display, const lv_area_t *area, unsigned 
   lv_display_flush_ready(display);
 }
 
-lv_obj_t *text_label = NULL;
-char text[256];
-
 void loop(void)
 {
+  todoistJsonPrint.init();
   if (WiFi.status() == WL_CONNECTED)
   {
     Serial.print(F("[HTTPS] begin...\n"));
@@ -170,43 +212,39 @@ void loop(void)
         // file found at server
         if (httpCode == HTTP_CODE_OK || httpCode == HTTP_CODE_MOVED_PERMANENTLY)
         {
-          https.writeToStream(&Serial);
+          https.writeToPrint(&todoistJsonPrint);
+          lv_label_set_text(first_task_content, task1_title);
+          lv_label_set_text(first_task_due, task1_due_string);
         }
         else
         {
-          strcpy(text, https.getString().c_str());
-          // text = https.errorToString(httpCode).c_str();
+          lv_label_set_text(second_task_content, https.errorToString(httpCode).c_str());
         }
       }
       else
       {
+        char text[100];
         Serial.printf("[HTTPS] GET... failed, error: %s\n", https.errorToString(httpCode).c_str());
         // get last ssl error
-        char error_buf[256];
-        client->getLastSSLError(error_buf, sizeof(error_buf));
         strcpy(text, "[HTTPS] \n");
-        strcpy(text + 9, error_buf);
+        client->getLastSSLError(text + 9, sizeof(text) - 9);
+        lv_label_set_text(second_task_content, text);
       }
 
       https.end();
     }
     else
     {
-      strcpy(text, "[HTTPS] Unable to connect\n");
+      lv_label_set_text(second_task_content, "[HTTPS] Unable to connect");
     }
   }
   Serial.println(F("Done"));
-  Serial.println(text);
 
-  if (!text_label)
-  {
-    text_label = lv_label_create(lv_screen_active());
-    lv_label_set_long_mode(text_label, LV_LABEL_LONG_WRAP); // Breaks the long lines
-    lv_obj_set_width(text_label, 150);                      // Set smaller width to make the lines wrap
-    lv_obj_set_style_text_align(text_label, LV_TEXT_ALIGN_CENTER, 0);
-    lv_obj_align(text_label, LV_ALIGN_CENTER, 0, -80);
-  }
-  lv_label_set_text(text_label, text);
+  time_t now = time(nullptr);
+  char time_str[6];
+  // strftime(time_str, 6, "%H:%M", localtime(&now));
+  strcpy(time_str, "00:00");
+  lv_label_set_text(current_time_text, time_str);
 
   lv_timer_handler();
   lv_tick_inc(60000);
