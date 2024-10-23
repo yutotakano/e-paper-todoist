@@ -24,22 +24,25 @@ static uint8_t lvgl_draw_buffer[DRAW_BUFFER_SIZE + 8];
 
 // Layout
 lv_obj_t *list_container;
-lv_obj_t *first_task_content;
-lv_obj_t *first_task_due;
-lv_obj_t *second_task_content;
-lv_obj_t *second_task_due;
-lv_obj_t *third_task_content;
-lv_obj_t *third_task_due;
+lv_obj_t *first_task_container;
+lv_obj_t *first_task_content_text;
+lv_obj_t *first_task_due_text;
+lv_obj_t *second_task_container;
+lv_obj_t *second_task_content_text;
+lv_obj_t *second_task_due_text;
+lv_obj_t *third_task_container;
+lv_obj_t *third_task_content_text;
+lv_obj_t *third_task_due_text;
 lv_obj_t *current_time_text;
-lv_point_precise_t line_points[] = {{140, 30}, {400, 30}};
-lv_obj_t *current_time_line;
+lv_point_precise_t header_line_points[] = {{140, 30}, {400, 30}};
+lv_obj_t *header_line;
 
 void update_tasks(lv_timer_t *timer);
 void update_time(lv_timer_t *timer);
 lv_timer_t *task_update_timer;
 lv_timer_t *time_update_timer;
 
-TodoistJsonPrint todoistJsonPrint;
+TodoistJsonPrint todoist_json_parser;
 
 void lvgl_flush_callback(lv_display_t *display, const lv_area_t *area, unsigned char *px_map);
 
@@ -112,47 +115,62 @@ void setup(void)
   lv_obj_set_size(list_container, 400, 250);
   lv_obj_align(list_container, LV_ALIGN_BOTTOM_LEFT, 0, 0);
   lv_obj_set_flex_flow(list_container, LV_FLEX_FLOW_COLUMN);
-  lv_obj_set_style_pad_all(list_container, 10, LV_PART_MAIN);
+  lv_obj_set_style_pad_hor(list_container, 10, LV_PART_MAIN);
 
-  first_task_content = lv_label_create(list_container);
-  lv_label_set_long_mode(first_task_content, LV_LABEL_LONG_WRAP); // Breaks the long lines
-  lv_label_set_text(first_task_content, "Placeholder Task 1");
-  lv_obj_set_width(first_task_content, 380); // Set smaller width to make the lines wrap
-  lv_obj_set_style_text_align(first_task_content, LV_TEXT_ALIGN_LEFT, 0);
-  lv_obj_set_flex_align(first_task_content, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START);
+  first_task_container = lv_obj_create(list_container);
+  lv_obj_set_size(first_task_container, 380, LV_SIZE_CONTENT);
+  lv_obj_set_flex_flow(first_task_container, LV_FLEX_FLOW_COLUMN);
+  lv_obj_set_style_pad_all(first_task_container, 0, LV_PART_MAIN);
+  lv_obj_set_style_pad_row(first_task_container, 0, LV_PART_MAIN);
 
-  first_task_due = lv_label_create(list_container);
-  lv_label_set_text(first_task_due, "Due: 2021-01-01");
+  first_task_content_text = lv_label_create(first_task_container);
+  lv_label_set_text(first_task_content_text, "Placeholder Task 1");
+  lv_label_set_long_mode(first_task_content_text, LV_LABEL_LONG_WRAP); // Breaks the long lines
+  lv_obj_set_width(first_task_content_text, 380);                      // Set smaller width to make the lines wrap
 
-  second_task_content = lv_label_create(list_container);
-  lv_label_set_long_mode(second_task_content, LV_LABEL_LONG_WRAP); // Breaks the long lines
-  lv_label_set_text(second_task_content, "Placeholder Task 2");
-  lv_obj_set_width(second_task_content, 380); // Set smaller width to make the lines wrap
-  lv_obj_set_style_text_align(second_task_content, LV_TEXT_ALIGN_LEFT, 0);
-  lv_obj_set_flex_align(second_task_content, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START);
+  first_task_due_text = lv_label_create(first_task_container);
+  lv_label_set_text(first_task_due_text, "Due: 2021-01-01");
+  lv_obj_set_style_pad_left(first_task_due_text, 15, LV_PART_MAIN);
 
-  second_task_due = lv_label_create(list_container);
-  lv_label_set_text(second_task_due, "Due: 2021-01-01");
+  second_task_container = lv_obj_create(list_container);
+  lv_obj_set_size(second_task_container, 380, LV_SIZE_CONTENT);
+  lv_obj_set_flex_flow(second_task_container, LV_FLEX_FLOW_COLUMN);
+  lv_obj_set_style_pad_all(second_task_container, 0, LV_PART_MAIN);
+  lv_obj_set_style_pad_row(second_task_container, 0, LV_PART_MAIN);
 
-  third_task_content = lv_label_create(list_container);
-  lv_label_set_long_mode(third_task_content, LV_LABEL_LONG_WRAP); // Breaks the long lines
-  lv_label_set_text(third_task_content, "Placeholder Task 3");
-  lv_obj_set_width(third_task_content, 380); // Set smaller width to make the lines wrap
-  lv_obj_set_style_text_align(third_task_content, LV_TEXT_ALIGN_LEFT, 0);
-  lv_obj_set_flex_align(third_task_content, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START);
+  second_task_content_text = lv_label_create(second_task_container);
+  lv_label_set_text(second_task_content_text, "Placeholder Task 2");
+  lv_label_set_long_mode(second_task_content_text, LV_LABEL_LONG_WRAP); // Breaks the long lines
+  lv_obj_set_width(second_task_content_text, 380);                      // Set smaller width to make the lines wrap
 
-  third_task_due = lv_label_create(list_container);
-  lv_label_set_text(third_task_due, "Due: 2021-01-01");
+  second_task_due_text = lv_label_create(second_task_container);
+  lv_label_set_text(second_task_due_text, "Due: 2021-01-01");
+  lv_obj_set_style_pad_left(second_task_due_text, 15, LV_PART_MAIN);
+
+  third_task_container = lv_obj_create(list_container);
+  lv_obj_set_size(third_task_container, 380, LV_SIZE_CONTENT);
+  lv_obj_set_flex_flow(third_task_container, LV_FLEX_FLOW_COLUMN);
+  lv_obj_set_style_pad_all(third_task_container, 0, LV_PART_MAIN);
+  lv_obj_set_style_pad_row(third_task_container, 0, LV_PART_MAIN);
+
+  third_task_content_text = lv_label_create(third_task_container);
+  lv_label_set_text(third_task_content_text, "Placeholder Task 3");
+  lv_label_set_long_mode(third_task_content_text, LV_LABEL_LONG_WRAP); // Breaks the long lines
+  lv_obj_set_width(third_task_content_text, 380);                      // Set smaller width to make the lines wrap
+
+  third_task_due_text = lv_label_create(third_task_container);
+  lv_label_set_text(third_task_due_text, "Due: 2021-01-01");
+  lv_obj_set_style_pad_left(third_task_due_text, 15, LV_PART_MAIN);
 
   current_time_text = lv_label_create(lv_display_get_screen_active(lvgl_display_red));
   lv_obj_set_style_text_font(current_time_text, &neuton_50_digits, 0);
   lv_label_set_text(current_time_text, "00:00");
   lv_obj_set_style_text_align(current_time_text, LV_TEXT_ALIGN_CENTER, 0);
-  lv_obj_align(current_time_text, LV_ALIGN_TOP_LEFT, 10, 15);
+  lv_obj_align(current_time_text, LV_ALIGN_TOP_LEFT, 15, 15);
 
-  current_time_line = lv_line_create(lv_display_get_screen_active(lvgl_display_red));
-  lv_line_set_points(current_time_line, line_points, 2);
-  lv_obj_set_style_line_width(current_time_line, 4, 0);
+  header_line = lv_line_create(lv_display_get_screen_active(lvgl_display_red));
+  lv_line_set_points(header_line, header_line_points, 2);
+  lv_obj_set_style_line_width(header_line, 4, 0);
 
   time_update_timer = lv_timer_create(update_time, 30000, NULL);
   task_update_timer = lv_timer_create(update_tasks, 300000, NULL);
@@ -221,7 +239,7 @@ void lvgl_flush_callback(lv_display_t *display, const lv_area_t *area, unsigned 
 
 void update_tasks(lv_timer_t *timer)
 {
-  todoistJsonPrint.init();
+  todoist_json_parser.init();
   if (WiFi.status() == WL_CONNECTED)
   {
     Serial.print(F("[HTTPS] begin...\n"));
@@ -243,17 +261,17 @@ void update_tasks(lv_timer_t *timer)
         // file found at server
         if (httpCode == HTTP_CODE_OK || httpCode == HTTP_CODE_MOVED_PERMANENTLY)
         {
-          https.writeToPrint(&todoistJsonPrint);
-          lv_label_set_text(first_task_content, task1_title);
-          lv_label_set_text(first_task_due, task1_due_string);
-          lv_label_set_text(second_task_content, task2_title);
-          lv_label_set_text(second_task_due, task2_due_string);
-          lv_label_set_text(third_task_content, task3_title);
-          lv_label_set_text(third_task_due, task3_due_string);
+          https.writeToPrint(&todoist_json_parser);
+          lv_label_set_text(first_task_content_text, task1_title);
+          lv_label_set_text(first_task_due_text, task1_due_string);
+          lv_label_set_text(second_task_content_text, task2_title);
+          lv_label_set_text(second_task_due_text, task2_due_string);
+          lv_label_set_text(third_task_content_text, task3_title);
+          lv_label_set_text(third_task_due_text, task3_due_string);
         }
         else
         {
-          lv_label_set_text(first_task_content, https.errorToString(httpCode).c_str());
+          lv_label_set_text(first_task_content_text, https.errorToString(httpCode).c_str());
         }
       }
       else
@@ -262,14 +280,14 @@ void update_tasks(lv_timer_t *timer)
         Serial.printf("[HTTPS] GET... failed, error: %s\n", https.errorToString(httpCode).c_str());
         // get last ssl error
         client.getLastSSLError(text, sizeof(text));
-        lv_label_set_text(first_task_content, text);
+        lv_label_set_text(first_task_content_text, text);
       }
 
       https.end();
     }
     else
     {
-      lv_label_set_text(first_task_content, "[HTTPS] Unable to connect");
+      lv_label_set_text(first_task_content_text, "[HTTPS] Unable to connect");
     }
   }
 }
