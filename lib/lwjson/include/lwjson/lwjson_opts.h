@@ -41,5 +41,6 @@
  * copy & replace here settings you want to change values
  */
 
+#define LWJSON_CFG_STREAM_STACK_SIZE 8
 
 #endif /* LWJSON_OPTS_HDR_H */
