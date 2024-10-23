@@ -1,6 +1,4 @@
-#include <Arduino.h>
 #include <ESP8266WiFi.h>
-#include <ESP8266WiFiMulti.h>
 #include <ESP8266HTTPClient.h>
 #include <WiFiClientSecureBearSSL.h>
 #include "epd.h"     // e-Paper driver
@@ -15,7 +13,6 @@ const char *ssid PROGMEM = WIFI_SSID;     //"your ssid";
 const char *password PROGMEM = WIFI_PASS; //"your password";
 IPAddress myIP;                           // IP address in your local wifi net
 
-ESP8266WiFiMulti WiFiMulti;
 std::unique_ptr<BearSSL::WiFiClientSecure> client(new BearSSL::WiFiClientSecure);
 HTTPClient https;
 
@@ -32,7 +29,7 @@ void setup(void)
 {
   Serial.begin(115200);
   WiFi.mode(WIFI_STA);
-  WiFiMulti.addAP(ssid, password);
+  WiFi.begin(ssid, password);
 
   // Static IP setting---by Lin
   // wifi_station_dhcpc_stop();
@@ -61,7 +58,7 @@ void setup(void)
   client->setInsecure();
   client->setBufferSizes(1024, 512);
 
-  while (WiFiMulti.run() != WL_CONNECTED)
+  while (WiFi.status() != WL_CONNECTED)
   {
     delay(500);
     Serial.print(".");
@@ -152,7 +149,7 @@ char text[256];
 
 void loop(void)
 {
-  if (WiFiMulti.run() == WL_CONNECTED)
+  if (WiFi.status() == WL_CONNECTED)
   {
     Serial.print(F("[HTTPS] begin...\n"));
     if (https.begin(*client, F(TODOIST_ENDPOINT)))
