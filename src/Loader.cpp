@@ -156,6 +156,7 @@ void loop(void)
     {
       Serial.print(F("[HTTPS] GET...\n"));
       https.addHeader("Authorization", F(TODOIST_BEARER));
+      https.setReuse(false);
 
       // start connection and send HTTP header
       int httpCode = https.GET();
