@@ -7,12 +7,9 @@
 #include "todoist_json_print.h"
 #include "time.h"
 
+// Declare font locally (see lv_conf.h for globally declared fonts)
 LV_FONT_DECLARE(neuton_50_digits);
 
-// const char* ssid = "Waveshare";
-// const char* password = "password";
-// const char* ssid = "TheHome";
-// const char* password = "qq330447168";
 const char *ssid PROGMEM = WIFI_SSID;     //"your ssid";
 const char *password PROGMEM = WIFI_PASS; //"your password";
 IPAddress myIP;                           // IP address in your local wifi net
