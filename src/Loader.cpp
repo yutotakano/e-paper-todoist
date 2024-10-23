@@ -237,6 +237,74 @@ void lvgl_flush_callback(lv_display_t *display, const lv_area_t *area, unsigned 
   lv_display_flush_ready(display);
 }
 
+void set_labels_from_tasks()
+{
+  // Get current time (local time) as estimated from last NTP sync
+  time_t now = time(nullptr);
+  tm *local_now = localtime(&now);
+
+  // Set titles easy peasy
+  lv_label_set_text(first_task_content_text, task1_title);
+  lv_label_set_text(second_task_content_text, task2_title);
+  lv_label_set_text(third_task_content_text, task3_title);
+
+  // Set due dates. Todoist gives us both a timestamp and a string, but the
+  // string isn't relative (it's always MMM DD format), which isn't very
+  // informative when quickly glacing at the display. So we calculate a relative
+  // date string, and attach the time to it.
+  char relative_due_string[16];
+
+  if (localtime(&task1_due)->tm_mday == local_now->tm_mday)
+  {
+    strftime(relative_due_string, sizeof(relative_due_string), "Today %H:%M", localtime(&task1_due));
+    lv_label_set_text(first_task_due_text, relative_due_string);
+  }
+  else if (localtime(&task1_due)->tm_mday == local_now->tm_mday + 1)
+  {
+    strftime(relative_due_string, sizeof(relative_due_string), "Tomorrow %H:%M", localtime(&task1_due));
+    lv_label_set_text(first_task_due_text, relative_due_string);
+  }
+  else
+  {
+    strftime(relative_due_string, sizeof(relative_due_string), "%Y-%m-%d %H:%M", localtime(&task1_due));
+    lv_label_set_text(first_task_due_text, relative_due_string);
+  }
+
+  // Repeat for task 2
+  if (localtime(&task2_due)->tm_mday == local_now->tm_mday)
+  {
+    strftime(relative_due_string, sizeof(relative_due_string), "Today %H:%M", localtime(&task2_due));
+    lv_label_set_text(second_task_due_text, relative_due_string);
+  }
+  else if (localtime(&task2_due)->tm_mday == local_now->tm_mday + 1)
+  {
+    strftime(relative_due_string, sizeof(relative_due_string), "Tomorrow %H:%M", localtime(&task2_due));
+    lv_label_set_text(second_task_due_text, relative_due_string);
+  }
+  else
+  {
+    strftime(relative_due_string, sizeof(relative_due_string), "%Y-%m-%d %H:%M", localtime(&task2_due));
+    lv_label_set_text(second_task_due_text, relative_due_string);
+  }
+
+  // Repeat for task 3
+  if (localtime(&task3_due)->tm_mday == local_now->tm_mday)
+  {
+    strftime(relative_due_string, sizeof(relative_due_string), "Today %H:%M", localtime(&task3_due));
+    lv_label_set_text(third_task_due_text, relative_due_string);
+  }
+  else if (localtime(&task3_due)->tm_mday == local_now->tm_mday + 1)
+  {
+    strftime(relative_due_string, sizeof(relative_due_string), "Tomorrow %H:%M", localtime(&task3_due));
+    lv_label_set_text(third_task_due_text, relative_due_string);
+  }
+  else
+  {
+    strftime(relative_due_string, sizeof(relative_due_string), "%Y-%m-%d %H:%M", localtime(&task3_due));
+    lv_label_set_text(third_task_due_text, relative_due_string);
+  }
+}
+
 void update_tasks(lv_timer_t *timer)
 {
   todoist_json_parser.init();
@@ -262,12 +330,7 @@ void update_tasks(lv_timer_t *timer)
         if (httpCode == HTTP_CODE_OK || httpCode == HTTP_CODE_MOVED_PERMANENTLY)
         {
           https.writeToPrint(&todoist_json_parser);
-          lv_label_set_text(first_task_content_text, task1_title);
-          lv_label_set_text(first_task_due_text, task1_due_string);
-          lv_label_set_text(second_task_content_text, task2_title);
-          lv_label_set_text(second_task_due_text, task2_due_string);
-          lv_label_set_text(third_task_content_text, task3_title);
-          lv_label_set_text(third_task_due_text, task3_due_string);
+          set_labels_from_tasks();
         }
         else
         {
