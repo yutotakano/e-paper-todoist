@@ -2,15 +2,18 @@
 #include "HardwareSerial.h"
 #include "todoist_json_print.h"
 
+#define TICK_SEQUENCE "\xEF\x81\x94 "
+#define TICK_SEQUENCE_LEN sizeof(TICK_SEQUENCE) - 1
+
 static lwjson_stream_parser_t stream_parser;
-char task1_title[100];
-char task1_due_string[16];
+char task1_title[100] = {0};
+char task1_due_string[16] = {0};
 time_t task1_due;
-char task2_title[100];
-char task2_due_string[16];
+char task2_title[100] = {0};
+char task2_due_string[16] = {0};
 time_t task2_due;
-char task3_title[100];
-char task3_due_string[16];
+char task3_title[100] = {0};
+char task3_due_string[16] = {0};
 time_t task3_due;
 
 char current_parsing_title[100];
@@ -64,27 +67,32 @@ prv_example_callback_func(lwjson_stream_parser_t *jsp, lwjson_stream_type_t type
     if (task3_due == 0 || current_parsing_due < task3_due)
     {
       // Insert into task3 (maybe might require moving it later)
-      strncpy(task3_title, current_parsing_title, sizeof(task3_title));
+      strcpy(task3_title, TICK_SEQUENCE);
+      strncpy(task3_title + TICK_SEQUENCE_LEN, current_parsing_title, sizeof(task3_title) - TICK_SEQUENCE_LEN);
       strncpy(task3_due_string, current_parsing_due_string, sizeof(task3_due_string));
       task3_due = current_parsing_due;
     }
     if (task2_due == 0 || current_parsing_due < task2_due)
     {
       // Inset into task2, move whatever was in task2 to task3
-      strncpy(task3_title, task2_title, sizeof(task3_title));
+      strcpy(task3_title, TICK_SEQUENCE);
+      strncpy(task3_title + TICK_SEQUENCE_LEN, task2_title + TICK_SEQUENCE_LEN, sizeof(task3_title) - TICK_SEQUENCE_LEN);
       strncpy(task3_due_string, task2_due_string, sizeof(task3_due_string));
       task3_due = task2_due;
-      strncpy(task2_title, current_parsing_title, sizeof(task2_title));
+      strcpy(task2_title, TICK_SEQUENCE);
+      strncpy(task2_title + TICK_SEQUENCE_LEN, current_parsing_title, sizeof(task2_title) - TICK_SEQUENCE_LEN);
       strncpy(task2_due_string, current_parsing_due_string, sizeof(task2_due_string));
       task2_due = current_parsing_due;
     }
     if (task1_due == 0 || current_parsing_due < task1_due)
     {
       // Insert into task1, move whatever was in task1 to task2
-      strncpy(task2_title, task1_title, sizeof(task2_title));
+      strcpy(task2_title, TICK_SEQUENCE);
+      strncpy(task2_title + TICK_SEQUENCE_LEN, task1_title + TICK_SEQUENCE_LEN, sizeof(task2_title) - TICK_SEQUENCE_LEN);
       strncpy(task2_due_string, task1_due_string, sizeof(task2_due_string));
       task2_due = task1_due;
-      strncpy(task1_title, current_parsing_title, sizeof(task1_title));
+      strcpy(task1_title, TICK_SEQUENCE);
+      strncpy(task1_title + TICK_SEQUENCE_LEN, current_parsing_title, sizeof(task1_title) - TICK_SEQUENCE_LEN);
       strncpy(task1_due_string, current_parsing_due_string, sizeof(task1_due_string));
       task1_due = current_parsing_due;
     }
