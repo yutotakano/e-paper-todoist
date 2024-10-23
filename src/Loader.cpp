@@ -6,9 +6,9 @@
 #include "lvgl/lvgl.h"
 #include "todoist_json_print.h"
 #include "time.h"
-#include "neuton_28_digits.c"
+#include "neuton_50_digits.c"
 
-LV_FONT_DECLARE(neuton_28_digits);
+LV_FONT_DECLARE(neuton_50_digits);
 
 // const char* ssid = "Waveshare";
 // const char* password = "password";
@@ -32,8 +32,12 @@ lv_obj_t *first_task_content;
 lv_obj_t *first_task_due;
 lv_obj_t *second_task_content;
 lv_obj_t *second_task_due;
-lv_style_t current_time_style;
 lv_obj_t *current_time_text;
+
+void update_tasks(lv_timer_t *timer);
+void update_time(lv_timer_t *timer);
+lv_timer_t *task_update_timer;
+lv_timer_t *time_update_timer;
 
 TodoistJsonPrint todoistJsonPrint;
 
@@ -82,7 +86,11 @@ void setup(void)
 
   // Set time up
   configTime(TIMEZONE, "pool.ntp.org", "time.nist.gov");
-  time(nullptr);
+  while (time(nullptr) < 1577836800) // arbitrary old but recent time: 2020-01-01T00:00:00Z
+  {
+    delay(500);
+    Serial.print(".");
+  }
 
   Serial.print(F("\nIP address: "));
   Serial.println(myIP = WiFi.localIP());
@@ -122,13 +130,18 @@ void setup(void)
   second_task_due = lv_label_create(list_container);
   lv_label_set_text(second_task_due, "Due: 2021-01-01");
 
-  lv_style_init(&current_time_style);
-  lv_style_set_text_font(&current_time_style, &neuton_28_digits);
   current_time_text = lv_label_create(lv_display_get_screen_active(lvgl_display_red));
-  lv_obj_add_style(current_time_text, &current_time_style, 0);
+  lv_obj_set_style_text_font(current_time_text, &neuton_50_digits, 0);
   lv_label_set_text(current_time_text, "00:00");
   lv_obj_set_style_text_align(current_time_text, LV_TEXT_ALIGN_CENTER, 0);
-  lv_obj_align(current_time_text, LV_ALIGN_BOTTOM_MID, 0, 10);
+  lv_obj_align(current_time_text, LV_ALIGN_CENTER, 0, 0);
+
+  time_update_timer = lv_timer_create(update_time, 30000, NULL);
+  task_update_timer = lv_timer_create(update_tasks, 300000, NULL);
+
+  // Call immediately in next loop
+  lv_timer_ready(task_update_timer);
+  lv_timer_ready(time_update_timer);
 }
 
 bool first = true;
@@ -188,7 +201,7 @@ void lvgl_flush_callback(lv_display_t *display, const lv_area_t *area, unsigned 
   lv_display_flush_ready(display);
 }
 
-void loop(void)
+void update_tasks(lv_timer_t *timer)
 {
   todoistJsonPrint.init();
   if (WiFi.status() == WL_CONNECTED)
@@ -238,15 +251,32 @@ void loop(void)
       lv_label_set_text(second_task_content, "[HTTPS] Unable to connect");
     }
   }
-  Serial.println(F("Done"));
+}
 
+void update_time(lv_timer_t *timer)
+{
   time_t now = time(nullptr);
+  tm *timeinfo = localtime(&now);
   char time_str[6];
-  // strftime(time_str, 6, "%H:%M", localtime(&now));
-  strcpy(time_str, "00:00");
+  // 15 seconds forward to take into account update time
+  sprintf(time_str, "%02d:%02d", timeinfo->tm_hour, timeinfo->tm_min + (timeinfo->tm_sec / 45));
   lv_label_set_text(current_time_text, time_str);
 
+  if (timeinfo->tm_min == 0)
+  {
+    // Make whole screen red
+    lv_obj_set_style_bg_color(lv_display_get_screen_active(lvgl_display_red), lv_color_make(0, 0, 0), 0);
+  }
+  else
+  {
+    // Make whole screen white
+    lv_obj_set_style_bg_color(lv_display_get_screen_active(lvgl_display_red), lv_color_make(255, 255, 255), 0);
+  }
+}
+
+void loop(void)
+{
   lv_timer_handler();
-  lv_tick_inc(60000);
-  delay(60000);
+  lv_tick_inc(1000);
+  delay(1000);
 }
