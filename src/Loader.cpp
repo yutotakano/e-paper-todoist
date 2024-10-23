@@ -153,15 +153,7 @@ void loop(void)
   {
     Serial.print(F("[HTTPS] begin...\n"));
     if (https.begin(*client, F(TODOIST_ENDPOINT)))
-    { // HTTPS
-      if (client->getMFLNStatus() == 1)
-      {
-        Serial.print(F("[HTTPS] MFLN enabled\n"));
-      }
-      else
-      {
-        Serial.print(F("[HTTPS] MFLN not enabled\n"));
-      }
+    {
       Serial.print(F("[HTTPS] GET...\n"));
       https.addHeader("Authorization", F(TODOIST_BEARER));
 
