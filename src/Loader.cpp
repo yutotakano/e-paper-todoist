@@ -32,6 +32,8 @@ lv_obj_t *first_task_content;
 lv_obj_t *first_task_due;
 lv_obj_t *second_task_content;
 lv_obj_t *second_task_due;
+lv_obj_t *third_task_content;
+lv_obj_t *third_task_due;
 lv_obj_t *current_time_text;
 
 void update_tasks(lv_timer_t *timer);
@@ -129,6 +131,15 @@ void setup(void)
 
   second_task_due = lv_label_create(list_container);
   lv_label_set_text(second_task_due, "Due: 2021-01-01");
+
+  third_task_content = lv_label_create(list_container);
+  lv_label_set_long_mode(third_task_content, LV_LABEL_LONG_WRAP); // Breaks the long lines
+  lv_label_set_text(third_task_content, "Placeholder Task 3");
+  lv_obj_set_width(third_task_content, 300); // Set smaller width to make the lines wrap
+  lv_obj_set_style_text_align(third_task_content, LV_TEXT_ALIGN_LEFT, 0);
+
+  third_task_due = lv_label_create(list_container);
+  lv_label_set_text(third_task_due, "Due: 2021-01-01");
 
   current_time_text = lv_label_create(lv_display_get_screen_active(lvgl_display_red));
   lv_obj_set_style_text_font(current_time_text, &neuton_50_digits, 0);
@@ -228,10 +239,14 @@ void update_tasks(lv_timer_t *timer)
           https.writeToPrint(&todoistJsonPrint);
           lv_label_set_text(first_task_content, task1_title);
           lv_label_set_text(first_task_due, task1_due_string);
+          lv_label_set_text(second_task_content, task2_title);
+          lv_label_set_text(second_task_due, task2_due_string);
+          lv_label_set_text(third_task_content, task3_title);
+          lv_label_set_text(third_task_due, task3_due_string);
         }
         else
         {
-          lv_label_set_text(second_task_content, https.errorToString(httpCode).c_str());
+          lv_label_set_text(first_task_content, https.errorToString(httpCode).c_str());
         }
       }
       else
@@ -241,14 +256,14 @@ void update_tasks(lv_timer_t *timer)
         // get last ssl error
         strcpy(text, "[HTTPS] \n");
         client->getLastSSLError(text + 9, sizeof(text) - 9);
-        lv_label_set_text(second_task_content, text);
+        lv_label_set_text(first_task_content, text);
       }
 
       https.end();
     }
     else
     {
-      lv_label_set_text(second_task_content, "[HTTPS] Unable to connect");
+      lv_label_set_text(first_task_content, "[HTTPS] Unable to connect");
     }
   }
 }

@@ -6,6 +6,12 @@ static lwjson_stream_parser_t stream_parser;
 char task1_title[100];
 char task1_due_string[16];
 time_t task1_due;
+char task2_title[100];
+char task2_due_string[16];
+time_t task2_due;
+char task3_title[100];
+char task3_due_string[16];
+time_t task3_due;
 
 char current_parsing_title[100];
 char current_parsing_due_string[16];
@@ -49,17 +55,43 @@ prv_example_callback_func(lwjson_stream_parser_t *jsp, lwjson_stream_type_t type
   else if (jsp->stack_pos == 1 && lwjson_stack_seq_1(jsp, 0, ARRAY) && type == LWJSON_STREAM_TYPE_OBJECT_END)
   {
     Serial.printf("}");
-    // Just finished parsing a task
-    // Check if this is due earlier than the previous one
-    if (current_parsing_due != 0 && (task1_due == 0 || current_parsing_due < task1_due))
+    // Just finished parsing a task, now insert it somewhere in 1, 2, or 3
+    // First begin by checking against the latemost one. If we start from the
+    // earliest, then we may have to shift everything, which might lose data.
+    if (current_parsing_due == 0)
+      return;
+
+    if (task3_due == 0 || current_parsing_due < task3_due)
     {
+      // Insert into task3 (maybe might require moving it later)
+      strncpy(task3_title, current_parsing_title, sizeof(task3_title));
+      strncpy(task3_due_string, current_parsing_due_string, sizeof(task3_due_string));
+      task3_due = current_parsing_due;
+    }
+    if (task2_due == 0 || current_parsing_due < task2_due)
+    {
+      // Inset into task2, move whatever was in task2 to task3
+      strncpy(task3_title, task2_title, sizeof(task3_title));
+      strncpy(task3_due_string, task2_due_string, sizeof(task3_due_string));
+      task3_due = task2_due;
+      strncpy(task2_title, current_parsing_title, sizeof(task2_title));
+      strncpy(task2_due_string, current_parsing_due_string, sizeof(task2_due_string));
+      task2_due = current_parsing_due;
+    }
+    if (task1_due == 0 || current_parsing_due < task1_due)
+    {
+      // Insert into task1, move whatever was in task1 to task2
+      strncpy(task2_title, task1_title, sizeof(task2_title));
+      strncpy(task2_due_string, task1_due_string, sizeof(task2_due_string));
+      task2_due = task1_due;
       strncpy(task1_title, current_parsing_title, sizeof(task1_title));
       strncpy(task1_due_string, current_parsing_due_string, sizeof(task1_due_string));
       task1_due = current_parsing_due;
-      memset(current_parsing_title, 0, sizeof(current_parsing_title));
-      memset(current_parsing_due_string, 0, sizeof(current_parsing_due_string));
-      current_parsing_due = 0;
     }
+
+    memset(current_parsing_title, 0, sizeof(current_parsing_title));
+    memset(current_parsing_due_string, 0, sizeof(current_parsing_due_string));
+    current_parsing_due = 0;
   }
 }
 
