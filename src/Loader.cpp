@@ -19,7 +19,7 @@ HTTPClient https;
 
 lv_display_t *lvgl_display_black;
 lv_display_t *lvgl_display_red;
-#define DRAW_BUFFER_SIZE 200
+#define DRAW_BUFFER_SIZE 400
 static uint8_t lvgl_draw_buffer[DRAW_BUFFER_SIZE + 8];
 
 typedef struct
