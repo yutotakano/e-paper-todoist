@@ -22,20 +22,19 @@ lv_display_t *lvgl_display_red;
 #define DRAW_BUFFER_SIZE 200
 static uint8_t lvgl_draw_buffer[DRAW_BUFFER_SIZE + 8];
 
+typedef struct
+{
+  lv_obj_t *container;
+  lv_obj_t *content_text;
+  lv_obj_t *due_text;
+} task_obj_t;
+
 // Layout
-lv_obj_t *list_container;
-lv_obj_t *first_task_container;
-lv_obj_t *first_task_content_text;
-lv_obj_t *first_task_due_text;
-lv_obj_t *second_task_container;
-lv_obj_t *second_task_content_text;
-lv_obj_t *second_task_due_text;
-lv_obj_t *third_task_container;
-lv_obj_t *third_task_content_text;
-lv_obj_t *third_task_due_text;
 lv_obj_t *current_time_text;
 lv_point_precise_t header_line_points[] = {{140, 30}, {400, 30}};
 lv_obj_t *header_line;
+lv_obj_t *list_container;
+task_obj_t task_objs[3] = {0};
 
 void update_tasks(lv_timer_t *timer);
 void update_time(lv_timer_t *timer);
@@ -111,57 +110,6 @@ void setup(void)
   lv_display_set_buffers(lvgl_display_red, lvgl_draw_buffer, NULL, sizeof(lvgl_draw_buffer), LV_DISPLAY_RENDER_MODE_PARTIAL);
   lv_display_set_flush_cb(lvgl_display_red, lvgl_flush_callback);
 
-  list_container = lv_obj_create(lv_screen_active());
-  lv_obj_set_size(list_container, 400, 250);
-  lv_obj_align(list_container, LV_ALIGN_BOTTOM_LEFT, 0, 0);
-  lv_obj_set_flex_flow(list_container, LV_FLEX_FLOW_COLUMN);
-  lv_obj_set_style_pad_hor(list_container, 10, LV_PART_MAIN);
-
-  first_task_container = lv_obj_create(list_container);
-  lv_obj_set_size(first_task_container, 380, LV_SIZE_CONTENT);
-  lv_obj_set_flex_flow(first_task_container, LV_FLEX_FLOW_COLUMN);
-  lv_obj_set_style_pad_all(first_task_container, 0, LV_PART_MAIN);
-  lv_obj_set_style_pad_row(first_task_container, 0, LV_PART_MAIN);
-
-  first_task_content_text = lv_label_create(first_task_container);
-  lv_label_set_text(first_task_content_text, "Placeholder Task 1");
-  lv_label_set_long_mode(first_task_content_text, LV_LABEL_LONG_WRAP); // Breaks the long lines
-  lv_obj_set_width(first_task_content_text, 380);                      // Set smaller width to make the lines wrap
-
-  first_task_due_text = lv_label_create(first_task_container);
-  lv_label_set_text(first_task_due_text, "Due: 2021-01-01");
-  lv_obj_set_style_pad_left(first_task_due_text, 15, LV_PART_MAIN);
-
-  second_task_container = lv_obj_create(list_container);
-  lv_obj_set_size(second_task_container, 380, LV_SIZE_CONTENT);
-  lv_obj_set_flex_flow(second_task_container, LV_FLEX_FLOW_COLUMN);
-  lv_obj_set_style_pad_all(second_task_container, 0, LV_PART_MAIN);
-  lv_obj_set_style_pad_row(second_task_container, 0, LV_PART_MAIN);
-
-  second_task_content_text = lv_label_create(second_task_container);
-  lv_label_set_text(second_task_content_text, "Placeholder Task 2");
-  lv_label_set_long_mode(second_task_content_text, LV_LABEL_LONG_WRAP); // Breaks the long lines
-  lv_obj_set_width(second_task_content_text, 380);                      // Set smaller width to make the lines wrap
-
-  second_task_due_text = lv_label_create(second_task_container);
-  lv_label_set_text(second_task_due_text, "Due: 2021-01-01");
-  lv_obj_set_style_pad_left(second_task_due_text, 15, LV_PART_MAIN);
-
-  third_task_container = lv_obj_create(list_container);
-  lv_obj_set_size(third_task_container, 380, LV_SIZE_CONTENT);
-  lv_obj_set_flex_flow(third_task_container, LV_FLEX_FLOW_COLUMN);
-  lv_obj_set_style_pad_all(third_task_container, 0, LV_PART_MAIN);
-  lv_obj_set_style_pad_row(third_task_container, 0, LV_PART_MAIN);
-
-  third_task_content_text = lv_label_create(third_task_container);
-  lv_label_set_text(third_task_content_text, "Placeholder Task 3");
-  lv_label_set_long_mode(third_task_content_text, LV_LABEL_LONG_WRAP); // Breaks the long lines
-  lv_obj_set_width(third_task_content_text, 380);                      // Set smaller width to make the lines wrap
-
-  third_task_due_text = lv_label_create(third_task_container);
-  lv_label_set_text(third_task_due_text, "Due: 2021-01-01");
-  lv_obj_set_style_pad_left(third_task_due_text, 15, LV_PART_MAIN);
-
   current_time_text = lv_label_create(lv_display_get_screen_active(lvgl_display_red));
   lv_obj_set_style_text_font(current_time_text, &neuton_50_digits, 0);
   lv_label_set_text(current_time_text, "00:00");
@@ -171,6 +119,31 @@ void setup(void)
   header_line = lv_line_create(lv_display_get_screen_active(lvgl_display_red));
   lv_line_set_points(header_line, header_line_points, 2);
   lv_obj_set_style_line_width(header_line, 4, 0);
+
+  list_container = lv_obj_create(lv_screen_active());
+  lv_obj_set_size(list_container, 400, 250);
+  lv_obj_align(list_container, LV_ALIGN_BOTTOM_LEFT, 0, 0);
+  lv_obj_set_flex_flow(list_container, LV_FLEX_FLOW_COLUMN);
+  lv_obj_set_style_pad_hor(list_container, 10, LV_PART_MAIN);
+  lv_obj_set_style_pad_row(list_container, 20, LV_PART_MAIN);
+
+  for (size_t i = 0; i < sizeof(task_objs) / sizeof(task_obj_t); i++)
+  {
+    task_objs[i].container = lv_obj_create(list_container);
+    lv_obj_set_size(task_objs[i].container, 380, LV_SIZE_CONTENT);
+    lv_obj_set_flex_flow(task_objs[i].container, LV_FLEX_FLOW_COLUMN);
+    lv_obj_set_style_pad_all(task_objs[i].container, 0, LV_PART_MAIN);
+    lv_obj_set_style_pad_row(task_objs[i].container, 0, LV_PART_MAIN);
+
+    task_objs[i].content_text = lv_label_create(task_objs[i].container);
+    lv_label_set_text_fmt(task_objs[i].content_text, "Placeholder Task %d", i);
+    lv_label_set_long_mode(task_objs[i].content_text, LV_LABEL_LONG_WRAP); // Breaks the long lines
+    lv_obj_set_width(task_objs[i].content_text, 380);                      // Set smaller width to make the lines wrap
+
+    task_objs[i].due_text = lv_label_create(task_objs[i].container);
+    lv_label_set_text(task_objs[i].due_text, "Due: 2024-01-01");
+    lv_obj_set_style_pad_left(task_objs[i].due_text, 15, LV_PART_MAIN);
+  }
 
   time_update_timer = lv_timer_create(update_time, 30000, NULL);
   task_update_timer = lv_timer_create(update_tasks, 300000, NULL);
@@ -242,66 +215,34 @@ void set_labels_from_tasks()
   // Get current time (local time) as estimated from last NTP sync
   time_t now = time(nullptr);
   tm *local_now = localtime(&now);
-
-  // Set titles easy peasy
-  lv_label_set_text(first_task_content_text, task1_title);
-  lv_label_set_text(second_task_content_text, task2_title);
-  lv_label_set_text(third_task_content_text, task3_title);
-
-  // Set due dates. Todoist gives us both a timestamp and a string, but the
-  // string isn't relative (it's always MMM DD format), which isn't very
-  // informative when quickly glacing at the display. So we calculate a relative
-  // date string, and attach the time to it.
   char relative_due_string[16];
 
-  if (localtime(&task1_due)->tm_mday == local_now->tm_mday)
+  for (size_t i = 0; i < sizeof(todoist_tasks) / sizeof(todoist_task_t); i++)
   {
-    strftime(relative_due_string, sizeof(relative_due_string), "Today %H:%M", localtime(&task1_due));
-    lv_label_set_text(first_task_due_text, relative_due_string);
-  }
-  else if (localtime(&task1_due)->tm_mday == local_now->tm_mday + 1)
-  {
-    strftime(relative_due_string, sizeof(relative_due_string), "Tomorrow %H:%M", localtime(&task1_due));
-    lv_label_set_text(first_task_due_text, relative_due_string);
-  }
-  else
-  {
-    strftime(relative_due_string, sizeof(relative_due_string), "%Y-%m-%d %H:%M", localtime(&task1_due));
-    lv_label_set_text(first_task_due_text, relative_due_string);
-  }
+    // Set titles easy peasy
+    lv_label_set_text(task_objs[i].content_text, todoist_tasks[i].content);
 
-  // Repeat for task 2
-  if (localtime(&task2_due)->tm_mday == local_now->tm_mday)
-  {
-    strftime(relative_due_string, sizeof(relative_due_string), "Today %H:%M", localtime(&task2_due));
-    lv_label_set_text(second_task_due_text, relative_due_string);
-  }
-  else if (localtime(&task2_due)->tm_mday == local_now->tm_mday + 1)
-  {
-    strftime(relative_due_string, sizeof(relative_due_string), "Tomorrow %H:%M", localtime(&task2_due));
-    lv_label_set_text(second_task_due_text, relative_due_string);
-  }
-  else
-  {
-    strftime(relative_due_string, sizeof(relative_due_string), "%Y-%m-%d %H:%M", localtime(&task2_due));
-    lv_label_set_text(second_task_due_text, relative_due_string);
-  }
+    tm *local_task_time = localtime(&todoist_tasks[i].due);
 
-  // Repeat for task 3
-  if (localtime(&task3_due)->tm_mday == local_now->tm_mday)
-  {
-    strftime(relative_due_string, sizeof(relative_due_string), "Today %H:%M", localtime(&task3_due));
-    lv_label_set_text(third_task_due_text, relative_due_string);
-  }
-  else if (localtime(&task3_due)->tm_mday == local_now->tm_mday + 1)
-  {
-    strftime(relative_due_string, sizeof(relative_due_string), "Tomorrow %H:%M", localtime(&task3_due));
-    lv_label_set_text(third_task_due_text, relative_due_string);
-  }
-  else
-  {
-    strftime(relative_due_string, sizeof(relative_due_string), "%Y-%m-%d %H:%M", localtime(&task3_due));
-    lv_label_set_text(third_task_due_text, relative_due_string);
+    // Set due dates. Todoist gives us both a timestamp and a string, but the
+    // string isn't relative (it's always MMM DD format), which isn't very
+    // informative when quickly glacing at the display. So we calculate a relative
+    // date string, and attach the time to it.
+    if (local_task_time->tm_mday == local_now->tm_mday)
+    {
+      strftime(relative_due_string, sizeof(relative_due_string), "Today %H:%M", local_task_time);
+      lv_label_set_text(task_objs[i].due_text, relative_due_string);
+    }
+    else if (local_task_time->tm_mday == local_now->tm_mday + 1)
+    {
+      strftime(relative_due_string, sizeof(relative_due_string), "Tomorrow %H:%M", local_task_time);
+      lv_label_set_text(task_objs[i].due_text, relative_due_string);
+    }
+    else
+    {
+      strftime(relative_due_string, sizeof(relative_due_string), "%Y-%m-%d %H:%M", local_task_time);
+      lv_label_set_text(task_objs[i].due_text, relative_due_string);
+    }
   }
 }
 
@@ -334,7 +275,7 @@ void update_tasks(lv_timer_t *timer)
         }
         else
         {
-          lv_label_set_text(first_task_content_text, https.errorToString(httpCode).c_str());
+          lv_label_set_text(task_objs[0].content_text, https.errorToString(httpCode).c_str());
         }
       }
       else
@@ -343,14 +284,14 @@ void update_tasks(lv_timer_t *timer)
         Serial.printf("[HTTPS] GET... failed, error: %s\n", https.errorToString(httpCode).c_str());
         // get last ssl error
         client.getLastSSLError(text, sizeof(text));
-        lv_label_set_text(first_task_content_text, text);
+        lv_label_set_text(task_objs[0].content_text, text);
       }
 
       https.end();
     }
     else
     {
-      lv_label_set_text(first_task_content_text, "[HTTPS] Unable to connect");
+      lv_label_set_text(task_objs[0].content_text, "[HTTPS] Unable to connect");
     }
   }
 }
@@ -359,9 +300,11 @@ void update_time(lv_timer_t *timer)
 {
   time_t now = time(nullptr);
   tm *timeinfo = localtime(&now);
+  // 15 seconds forward to take into account the display update time and slow
+  // processing of the ESP8266
+  timeinfo->tm_min += (timeinfo->tm_sec / 45);
   char time_str[6];
-  // 15 seconds forward to take into account update time
-  sprintf(time_str, "%02d:%02d", timeinfo->tm_hour, timeinfo->tm_min + (timeinfo->tm_sec / 45));
+  sprintf(time_str, "%02d:%02d", timeinfo->tm_hour, timeinfo->tm_min);
   lv_label_set_text(current_time_text, time_str);
 
   if (timeinfo->tm_min == 0)

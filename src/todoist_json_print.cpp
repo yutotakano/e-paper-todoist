@@ -1,24 +1,15 @@
 #include "Print.h"
 #include "HardwareSerial.h"
 #include "todoist_json_print.h"
+#include "secrets.h"
 
 #define TICK_SEQUENCE "\xEF\x81\x94 "
 #define TICK_SEQUENCE_LEN sizeof(TICK_SEQUENCE) - 1
 
 static lwjson_stream_parser_t stream_parser;
-char task1_title[100] = {0};
-char task1_due_string[16] = {0};
-time_t task1_due;
-char task2_title[100] = {0};
-char task2_due_string[16] = {0};
-time_t task2_due;
-char task3_title[100] = {0};
-char task3_due_string[16] = {0};
-time_t task3_due;
 
-char current_parsing_title[100];
-char current_parsing_due_string[16];
-time_t current_parsing_due;
+todoist_task_t todoist_tasks[3];
+todoist_task_t current_parsing_task;
 
 static void
 prv_example_callback_func(lwjson_stream_parser_t *jsp, lwjson_stream_type_t type)
@@ -27,24 +18,19 @@ prv_example_callback_func(lwjson_stream_parser_t *jsp, lwjson_stream_type_t type
   {
     // Title
     Serial.printf("\"content\": \"%s\", ", jsp->data.str.buff);
-    strncpy(current_parsing_title, jsp->data.str.buff, sizeof(current_parsing_title));
+    strncpy(current_parsing_task.content, jsp->data.str.buff, sizeof(current_parsing_task.content));
   }
   else if (jsp->stack_pos == 5 && lwjson_stack_seq_5(jsp, 0, ARRAY, OBJECT, KEY, OBJECT, KEY) && strcmp(jsp->stack[2].meta.name, "due") == 0)
   {
-    if (strcmp(jsp->stack[4].meta.name, "string") == 0)
-    {
-      Serial.printf("\"due.string\": \"%s\", ", jsp->data.str.buff);
-      strncpy(current_parsing_due_string, jsp->data.str.buff, sizeof(current_parsing_due_string));
-    }
-    else if (strcmp(jsp->stack[4].meta.name, "date") == 0)
+    if (strcmp(jsp->stack[4].meta.name, "date") == 0)
     {
       Serial.printf("\"due.date\": \"%s\", ", jsp->data.str.buff);
       // If only due time is not set yet, set to unix time from date
-      if (current_parsing_due == 0)
+      if (current_parsing_task.due == 0)
       {
         struct tm tm = {0};
         strptime(jsp->data.str.buff, "%Y-%m-%d", &tm);
-        current_parsing_due = mktime(&tm);
+        current_parsing_task.due = mktime(&tm);
       }
     }
     else if (strcmp(jsp->stack[4].meta.name, "datetime") == 0)
@@ -52,7 +38,8 @@ prv_example_callback_func(lwjson_stream_parser_t *jsp, lwjson_stream_type_t type
       Serial.printf("\"due.datetime\": \"%s\", ", jsp->data.str.buff);
       struct tm tm = {0};
       strptime(jsp->data.str.buff, "%Y-%m-%dT%H:%M:%S", &tm);
-      current_parsing_due = mktime(&tm);
+      current_parsing_task.due = mktime(&tm);
+      current_parsing_task.has_time = true;
     }
   }
   else if (jsp->stack_pos == 1 && lwjson_stack_seq_1(jsp, 0, ARRAY) && type == LWJSON_STREAM_TYPE_OBJECT_END)
@@ -61,45 +48,38 @@ prv_example_callback_func(lwjson_stream_parser_t *jsp, lwjson_stream_type_t type
     // Just finished parsing a task, now insert it somewhere in 1, 2, or 3
     // First begin by checking against the latemost one. If we start from the
     // earliest, then we may have to shift everything, which might lose data.
-    if (current_parsing_due == 0)
+    if (current_parsing_task.due == 0)
       return;
 
-    if (task3_due == 0 || current_parsing_due < task3_due)
+    if (todoist_tasks[2].due == 0 || current_parsing_task.due < todoist_tasks[2].due)
     {
       // Insert into task3 (maybe might require moving it later)
-      strcpy(task3_title, TICK_SEQUENCE);
-      strncpy(task3_title + TICK_SEQUENCE_LEN, current_parsing_title, sizeof(task3_title) - TICK_SEQUENCE_LEN);
-      strncpy(task3_due_string, current_parsing_due_string, sizeof(task3_due_string));
-      task3_due = current_parsing_due;
+      strcpy(todoist_tasks[2].content, TICK_SEQUENCE);
+      strncpy(todoist_tasks[2].content + TICK_SEQUENCE_LEN, current_parsing_task.content, sizeof(todoist_tasks[2].content) - TICK_SEQUENCE_LEN);
+      todoist_tasks[2].due = current_parsing_task.due;
     }
-    if (task2_due == 0 || current_parsing_due < task2_due)
+    if (todoist_tasks[1].due == 0 || current_parsing_task.due < todoist_tasks[1].due)
     {
-      // Inset into task2, move whatever was in task2 to task3
-      strcpy(task3_title, TICK_SEQUENCE);
-      strncpy(task3_title + TICK_SEQUENCE_LEN, task2_title + TICK_SEQUENCE_LEN, sizeof(task3_title) - TICK_SEQUENCE_LEN);
-      strncpy(task3_due_string, task2_due_string, sizeof(task3_due_string));
-      task3_due = task2_due;
-      strcpy(task2_title, TICK_SEQUENCE);
-      strncpy(task2_title + TICK_SEQUENCE_LEN, current_parsing_title, sizeof(task2_title) - TICK_SEQUENCE_LEN);
-      strncpy(task2_due_string, current_parsing_due_string, sizeof(task2_due_string));
-      task2_due = current_parsing_due;
+      // Insert into task2, move whatever was in task2 to task3
+      strcpy(todoist_tasks[2].content, TICK_SEQUENCE);
+      strncpy(todoist_tasks[2].content + TICK_SEQUENCE_LEN, todoist_tasks[1].content + TICK_SEQUENCE_LEN, sizeof(todoist_tasks[2].content) - TICK_SEQUENCE_LEN);
+      todoist_tasks[2].due = todoist_tasks[1].due;
+      strcpy(todoist_tasks[1].content, TICK_SEQUENCE);
+      strncpy(todoist_tasks[1].content + TICK_SEQUENCE_LEN, current_parsing_task.content, sizeof(todoist_tasks[1].content) - TICK_SEQUENCE_LEN);
+      todoist_tasks[1].due = current_parsing_task.due;
     }
-    if (task1_due == 0 || current_parsing_due < task1_due)
+    if (todoist_tasks[0].due == 0 || current_parsing_task.due < todoist_tasks[0].due)
     {
       // Insert into task1, move whatever was in task1 to task2
-      strcpy(task2_title, TICK_SEQUENCE);
-      strncpy(task2_title + TICK_SEQUENCE_LEN, task1_title + TICK_SEQUENCE_LEN, sizeof(task2_title) - TICK_SEQUENCE_LEN);
-      strncpy(task2_due_string, task1_due_string, sizeof(task2_due_string));
-      task2_due = task1_due;
-      strcpy(task1_title, TICK_SEQUENCE);
-      strncpy(task1_title + TICK_SEQUENCE_LEN, current_parsing_title, sizeof(task1_title) - TICK_SEQUENCE_LEN);
-      strncpy(task1_due_string, current_parsing_due_string, sizeof(task1_due_string));
-      task1_due = current_parsing_due;
+      strcpy(todoist_tasks[1].content, TICK_SEQUENCE);
+      strncpy(todoist_tasks[1].content + TICK_SEQUENCE_LEN, todoist_tasks[0].content + TICK_SEQUENCE_LEN, sizeof(todoist_tasks[1].content) - TICK_SEQUENCE_LEN);
+      todoist_tasks[1].due = todoist_tasks[0].due;
+      strcpy(todoist_tasks[0].content, TICK_SEQUENCE);
+      strncpy(todoist_tasks[0].content + TICK_SEQUENCE_LEN, current_parsing_task.content, sizeof(todoist_tasks[0].content) - TICK_SEQUENCE_LEN);
+      todoist_tasks[0].due = current_parsing_task.due;
     }
 
-    memset(current_parsing_title, 0, sizeof(current_parsing_title));
-    memset(current_parsing_due_string, 0, sizeof(current_parsing_due_string));
-    current_parsing_due = 0;
+    current_parsing_task = {0};
   }
 }
 

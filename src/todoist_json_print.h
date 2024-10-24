@@ -5,15 +5,14 @@
 #include <lwjson/lwjson.h>
 #include "time.h"
 
-extern char task1_title[100];
-extern char task1_due_string[16];
-extern time_t task1_due;
-extern char task2_title[100];
-extern char task2_due_string[16];
-extern time_t task2_due;
-extern char task3_title[100];
-extern char task3_due_string[16];
-extern time_t task3_due;
+typedef struct
+{
+  char content[100] = {0};
+  time_t due = 0;
+  bool has_time = false;
+} todoist_task_t;
+
+extern todoist_task_t todoist_tasks[3];
 
 class TodoistJsonPrint : public Print
 {
