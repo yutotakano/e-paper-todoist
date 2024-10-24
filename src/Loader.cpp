@@ -342,12 +342,14 @@ void update_time(lv_timer_t *timer)
   if (timeinfo->tm_min == 0)
   {
     // Make whole screen red
+    lv_obj_set_style_bg_color(lv_display_get_screen_active(lvgl_display_black), lv_color_black(), 0);
     lv_obj_set_style_bg_color(lv_display_get_screen_active(lvgl_display_red), lv_color_black(), 0);
     lv_obj_set_style_text_color(current_time_text, lv_color_white(), 0);
   }
   else
   {
     // Make whole screen white
+    lv_obj_set_style_bg_color(lv_display_get_screen_active(lvgl_display_black), lv_color_white(), 0);
     lv_obj_set_style_bg_color(lv_display_get_screen_active(lvgl_display_red), lv_color_white(), 0);
     lv_obj_set_style_text_color(current_time_text, lv_color_black(), 0);
   }
