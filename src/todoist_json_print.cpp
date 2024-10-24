@@ -3,7 +3,7 @@
 #include "todoist_json_print.h"
 #include "secrets.h"
 
-#define TICK_SEQUENCE "\xEF\x81\x94 "
+#define TICK_SEQUENCE "\xEE\xB4\xBB "
 #define TICK_SEQUENCE_LEN sizeof(TICK_SEQUENCE) - 1
 
 static lwjson_stream_parser_t stream_parser;
@@ -26,9 +26,13 @@ prv_example_callback_func(lwjson_stream_parser_t *jsp, lwjson_stream_type_t type
     {
       Serial.printf("\"due.date\": \"%s\", ", jsp->data.str.buff);
       // If only due time is not set yet, set to unix time from date
-      if (current_parsing_task.due == 0)
+      if (!current_parsing_task.has_time)
       {
-        struct tm tm = {0};
+        char tz[64];
+        memcpy(tz, getenv("TZ"), sizeof(tz));
+        setenv("TZ", TODOIST_TIMEZONE, 1);
+        tzset();
+        struct tm tm = {.tm_isdst = -1};
         strptime(jsp->data.str.buff, "%Y-%m-%d", &tm);
         // By default it's 00:00:00, but we want to show it below tasks with
         // time, so set it to 23:59:59
@@ -36,16 +40,20 @@ prv_example_callback_func(lwjson_stream_parser_t *jsp, lwjson_stream_type_t type
         tm.tm_min = 59;
         tm.tm_sec = 59;
         current_parsing_task.due = mktime(&tm);
+        setenv("TZ", tz, 1);
+        tzset();
       }
     }
     else if (strcmp(jsp->stack[4].meta.name, "datetime") == 0)
     {
       Serial.printf("\"due.datetime\": \"%s\", ", jsp->data.str.buff);
-      // Temporarily hold onto current TZ
-      char *tz = getenv("TZ");
+      // Temporarily hold onto current TZ. Since getenv() returns a pointer to
+      // the actual environment variable, we need to copy it to a new buffer.
+      char tz[64];
+      memcpy(tz, getenv("TZ"), sizeof(tz));
       setenv("TZ", TODOIST_TIMEZONE, 1);
       tzset();
-      struct tm tm = {0};
+      struct tm tm = {.tm_isdst = -1};
       strptime(jsp->data.str.buff, "%Y-%m-%dT%H:%M:%S", &tm);
       current_parsing_task.due = mktime(&tm);
       // Restore TZ
@@ -103,6 +111,13 @@ prv_example_callback_func(lwjson_stream_parser_t *jsp, lwjson_stream_type_t type
 void TodoistJsonPrint::init()
 {
   lwjson_stream_init(&stream_parser, prv_example_callback_func);
+
+  // Reset all tasks to 0, otherwise if any were completed, they'd still show up
+  // as being earlier than the new tasks and will stay on screen
+  for (int i = 0; i < 3; i++)
+  {
+    todoist_tasks[i] = {0};
+  }
 }
 
 inline size_t TodoistJsonPrint::write(uint8_t t)
