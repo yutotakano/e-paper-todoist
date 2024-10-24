@@ -69,6 +69,7 @@ prv_example_callback_func(lwjson_stream_parser_t *jsp, lwjson_stream_type_t type
       strcpy(todoist_tasks[2].content, TICK_SEQUENCE);
       strncpy(todoist_tasks[2].content + TICK_SEQUENCE_LEN, current_parsing_task.content, sizeof(todoist_tasks[2].content) - TICK_SEQUENCE_LEN);
       todoist_tasks[2].due = current_parsing_task.due;
+      todoist_tasks[2].has_time = current_parsing_task.has_time;
     }
     if (todoist_tasks[1].due == 0 || current_parsing_task.due < todoist_tasks[1].due)
     {
@@ -76,9 +77,11 @@ prv_example_callback_func(lwjson_stream_parser_t *jsp, lwjson_stream_type_t type
       strcpy(todoist_tasks[2].content, TICK_SEQUENCE);
       strncpy(todoist_tasks[2].content + TICK_SEQUENCE_LEN, todoist_tasks[1].content + TICK_SEQUENCE_LEN, sizeof(todoist_tasks[2].content) - TICK_SEQUENCE_LEN);
       todoist_tasks[2].due = todoist_tasks[1].due;
+      todoist_tasks[2].has_time = todoist_tasks[1].has_time;
       strcpy(todoist_tasks[1].content, TICK_SEQUENCE);
       strncpy(todoist_tasks[1].content + TICK_SEQUENCE_LEN, current_parsing_task.content, sizeof(todoist_tasks[1].content) - TICK_SEQUENCE_LEN);
       todoist_tasks[1].due = current_parsing_task.due;
+      todoist_tasks[1].has_time = current_parsing_task.has_time;
     }
     if (todoist_tasks[0].due == 0 || current_parsing_task.due < todoist_tasks[0].due)
     {
@@ -86,9 +89,11 @@ prv_example_callback_func(lwjson_stream_parser_t *jsp, lwjson_stream_type_t type
       strcpy(todoist_tasks[1].content, TICK_SEQUENCE);
       strncpy(todoist_tasks[1].content + TICK_SEQUENCE_LEN, todoist_tasks[0].content + TICK_SEQUENCE_LEN, sizeof(todoist_tasks[1].content) - TICK_SEQUENCE_LEN);
       todoist_tasks[1].due = todoist_tasks[0].due;
+      todoist_tasks[1].has_time = todoist_tasks[0].has_time;
       strcpy(todoist_tasks[0].content, TICK_SEQUENCE);
       strncpy(todoist_tasks[0].content + TICK_SEQUENCE_LEN, current_parsing_task.content, sizeof(todoist_tasks[0].content) - TICK_SEQUENCE_LEN);
       todoist_tasks[0].due = current_parsing_task.due;
+      todoist_tasks[0].has_time = current_parsing_task.has_time;
     }
 
     current_parsing_task = {0};
