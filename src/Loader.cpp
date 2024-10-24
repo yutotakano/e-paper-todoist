@@ -120,12 +120,14 @@ void setup(void)
   lv_line_set_points(header_line, header_line_points, 2);
   lv_obj_set_style_line_width(header_line, 4, 0);
 
-  list_container = lv_obj_create(lv_screen_active());
+  list_container = lv_obj_create(lv_display_get_screen_active(lvgl_display_black));
   lv_obj_set_size(list_container, 400, 250);
   lv_obj_align(list_container, LV_ALIGN_BOTTOM_LEFT, 0, 0);
   lv_obj_set_flex_flow(list_container, LV_FLEX_FLOW_COLUMN);
   lv_obj_set_style_pad_hor(list_container, 10, LV_PART_MAIN);
   lv_obj_set_style_pad_row(list_container, 20, LV_PART_MAIN);
+  lv_obj_set_style_bg_opa(list_container, LV_OPA_0, LV_PART_MAIN);
+  lv_obj_set_style_border_opa(list_container, LV_OPA_0, LV_PART_MAIN);
 
   for (size_t i = 0; i < sizeof(task_objs) / sizeof(task_obj_t); i++)
   {
@@ -134,6 +136,8 @@ void setup(void)
     lv_obj_set_flex_flow(task_objs[i].container, LV_FLEX_FLOW_COLUMN);
     lv_obj_set_style_pad_all(task_objs[i].container, 0, LV_PART_MAIN);
     lv_obj_set_style_pad_row(task_objs[i].container, 0, LV_PART_MAIN);
+    lv_obj_set_style_bg_opa(task_objs[i].container, LV_OPA_0, LV_PART_MAIN);
+    lv_obj_set_style_border_opa(task_objs[i].container, LV_OPA_0, LV_PART_MAIN);
 
     task_objs[i].content_text = lv_label_create(task_objs[i].container);
     lv_label_set_text_fmt(task_objs[i].content_text, "Placeholder Task %d", i);
@@ -341,15 +345,14 @@ void update_time(lv_timer_t *timer)
 
   if (timeinfo->tm_min == 0)
   {
-    // Make whole screen red
+    // Flash black, then red, to both indicate the hour, and to fully refresh
+    // the display and avoid ghost pixels or discolouration
     lv_obj_set_style_bg_color(lv_display_get_screen_active(lvgl_display_black), lv_color_black(), 0);
-    lv_obj_set_style_bg_color(lv_display_get_screen_active(lvgl_display_red), lv_color_black(), 0);
     lv_obj_set_style_text_color(current_time_text, lv_color_white(), 0);
-  }
-  else
-  {
-    // Make whole screen white
+    lv_refr_now(lvgl_display_black);
     lv_obj_set_style_bg_color(lv_display_get_screen_active(lvgl_display_black), lv_color_white(), 0);
+    lv_obj_set_style_bg_color(lv_display_get_screen_active(lvgl_display_red), lv_color_black(), 0);
+    lv_refr_now(lvgl_display_red);
     lv_obj_set_style_bg_color(lv_display_get_screen_active(lvgl_display_red), lv_color_white(), 0);
     lv_obj_set_style_text_color(current_time_text, lv_color_black(), 0);
   }
