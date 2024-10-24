@@ -142,7 +142,7 @@ void setup(void)
 
     task_objs[i].due_text = lv_label_create(task_objs[i].container);
     lv_label_set_text(task_objs[i].due_text, "Due: 2024-01-01");
-    lv_obj_set_style_pad_left(task_objs[i].due_text, 15, LV_PART_MAIN);
+    lv_obj_set_style_pad_left(task_objs[i].due_text, 24, LV_PART_MAIN);
   }
 
   time_update_timer = lv_timer_create(update_time, 30000, NULL);
@@ -225,8 +225,7 @@ void set_labels_from_tasks()
     // Replace tick mark if overdue
     if (todoist_tasks[i].due < now)
     {
-      char *overdue_icon = "\xEF\x80\x97";
-      memcpy(todoist_tasks[i].content, overdue_icon, 3);
+      memcpy(todoist_tasks[i].content, "\xEE\xAE\xA0", 3);
     }
 
     // Set titles easy peasy
