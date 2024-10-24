@@ -335,10 +335,10 @@ void update_tasks(lv_timer_t *timer)
 void update_time(lv_timer_t *timer)
 {
   time_t now = time(nullptr);
+  now += 15;
   tm *timeinfo = localtime(&now);
   // 15 seconds forward to take into account the display update time and slow
   // processing of the ESP8266
-  timeinfo->tm_min += (timeinfo->tm_sec / 45);
   char time_str[6];
   sprintf(time_str, "%02d:%02d", timeinfo->tm_hour, timeinfo->tm_min);
   lv_label_set_text(current_time_text, time_str);
