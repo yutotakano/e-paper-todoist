@@ -30,6 +30,11 @@ prv_example_callback_func(lwjson_stream_parser_t *jsp, lwjson_stream_type_t type
       {
         struct tm tm = {0};
         strptime(jsp->data.str.buff, "%Y-%m-%d", &tm);
+        // By default it's 00:00:00, but we want to show it below tasks with
+        // time, so set it to 23:59:59
+        tm.tm_hour = 23;
+        tm.tm_min = 59;
+        tm.tm_sec = 59;
         current_parsing_task.due = mktime(&tm);
       }
     }
