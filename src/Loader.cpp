@@ -230,17 +230,33 @@ void set_labels_from_tasks()
     // date string, and attach the time to it.
     if (local_task_time->tm_mday == local_now->tm_mday)
     {
-      strftime(relative_due_string, sizeof(relative_due_string), "Today %H:%M", local_task_time);
+      strcpy(relative_due_string, "Today ");
+      if (todoist_tasks[i].has_time)
+      {
+        strftime(relative_due_string + 6, sizeof(relative_due_string) - 6, "%H:%M", local_task_time);
+      }
       lv_label_set_text(task_objs[i].due_text, relative_due_string);
     }
     else if (local_task_time->tm_mday == local_now->tm_mday + 1)
     {
-      strftime(relative_due_string, sizeof(relative_due_string), "Tomorrow %H:%M", local_task_time);
+      strcpy(relative_due_string, "Tomorrow ");
+      if (todoist_tasks[i].has_time)
+      {
+        strftime(relative_due_string + 9, sizeof(relative_due_string) - 9, "%H:%M", local_task_time);
+      }
       lv_label_set_text(task_objs[i].due_text, relative_due_string);
     }
     else
     {
-      strftime(relative_due_string, sizeof(relative_due_string), "%Y-%m-%d %H:%M", local_task_time);
+      if (todoist_tasks[i].has_time)
+      {
+        strftime(relative_due_string, sizeof(relative_due_string), "%Y-%m-%d %H:%M", local_task_time);
+        lv_label_set_text(task_objs[i].due_text, relative_due_string);
+      }
+      else
+      {
+        strftime(relative_due_string, sizeof(relative_due_string), "%Y-%m-%d", local_task_time);
+      }
       lv_label_set_text(task_objs[i].due_text, relative_due_string);
     }
   }
