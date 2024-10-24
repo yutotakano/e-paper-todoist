@@ -36,9 +36,16 @@ prv_example_callback_func(lwjson_stream_parser_t *jsp, lwjson_stream_type_t type
     else if (strcmp(jsp->stack[4].meta.name, "datetime") == 0)
     {
       Serial.printf("\"due.datetime\": \"%s\", ", jsp->data.str.buff);
+      // Temporarily hold onto current TZ
+      char *tz = getenv("TZ");
+      setenv("TZ", TODOIST_TIMEZONE, 1);
+      tzset();
       struct tm tm = {0};
       strptime(jsp->data.str.buff, "%Y-%m-%dT%H:%M:%S", &tm);
       current_parsing_task.due = mktime(&tm);
+      // Restore TZ
+      setenv("TZ", tz, 1);
+      tzset();
       current_parsing_task.has_time = true;
     }
   }
