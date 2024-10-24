@@ -1,7 +1,7 @@
 /*******************************************************************************
  * Size: 18 px
  * Bpp: 2
- * Opts: --bpp 2 --size 18 --no-compress --font NotoSerif-Regular.ttf --range 32-127 --font fa-solid-900.ttf --range 61524 --format lvgl -o notoserif_18_ascii.c
+ * Opts: --bpp 2 --size 18 --no-compress --font NotoSerif-Regular.ttf --range 32-127 --font fa-solid-900.ttf --range 61524,61463 --format lvgl -o notoserif_18_ascii.c
  ******************************************************************************/
 
 #ifdef LV_LVGL_H_INCLUDE_SIMPLE
@@ -594,6 +594,19 @@ static LV_ATTRIBUTE_LARGE_CONST const uint8_t glyph_bitmap[] = {
     0xf, 0x80, 0xc2, 0x8e, 0x1c, 0x30, 0x2f, 0x0,
     0x0, 0x0,
 
+    /* U+F017 "" */
+    0x0, 0x6, 0xf9, 0x0, 0x0, 0xb, 0xff, 0xfe,
+    0x0, 0x3, 0xff, 0xff, 0xfc, 0x0, 0xff, 0xff,
+    0xff, 0xf0, 0x2f, 0xff, 0xf, 0xff, 0x83, 0xff,
+    0xf0, 0xff, 0xfc, 0xbf, 0xff, 0xf, 0xff, 0xef,
+    0xff, 0xf0, 0xff, 0xff, 0xff, 0xff, 0xf, 0xff,
+    0xff, 0xff, 0xf4, 0x3f, 0xff, 0xff, 0xff, 0xe0,
+    0x7f, 0xfb, 0xff, 0xff, 0xc3, 0xfe, 0x7f, 0xff,
+    0xff, 0xff, 0xd3, 0xff, 0xff, 0xff, 0xfc, 0xf,
+    0xff, 0xff, 0xff, 0x0, 0x7f, 0xff, 0xff, 0xd0,
+    0x0, 0xff, 0xff, 0xf0, 0x0, 0x1, 0xff, 0xf4,
+    0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+
     /* U+F054 "" */
     0x20, 0x0, 0xb, 0xc0, 0x0, 0x7f, 0x0, 0x1,
     0xfc, 0x0, 0x7, 0xf0, 0x0, 0x1f, 0xc0, 0x0,
@@ -705,14 +718,17 @@ static const lv_font_fmt_txt_glyph_dsc_t glyph_dsc[] = {
     {.bitmap_index = 2699, .adv_w = 161, .box_w = 2, .box_h = 18, .ofs_x = 4, .ofs_y = -4},
     {.bitmap_index = 2708, .adv_w = 123, .box_w = 7, .box_h = 16, .ofs_x = 0, .ofs_y = -2},
     {.bitmap_index = 2736, .adv_w = 161, .box_w = 10, .box_h = 4, .ofs_x = 0, .ofs_y = 4},
-    {.bitmap_index = 2746, .adv_w = 180, .box_w = 10, .box_h = 17, .ofs_x = 2, .ofs_y = -2}
+    {.bitmap_index = 2746, .adv_w = 288, .box_w = 18, .box_h = 19, .ofs_x = 0, .ofs_y = -3},
+    {.bitmap_index = 2832, .adv_w = 180, .box_w = 10, .box_h = 17, .ofs_x = 2, .ofs_y = -2}
 };
 
 /*---------------------
  *  CHARACTER MAPPING
  *--------------------*/
 
-
+static const uint16_t unicode_list_1[] = {
+    0x0, 0x3d
+};
 
 /*Collect the unicode lists and glyph_id offsets*/
 static const lv_font_fmt_txt_cmap_t cmaps[] =
@@ -722,8 +738,8 @@ static const lv_font_fmt_txt_cmap_t cmaps[] =
         .unicode_list = NULL, .glyph_id_ofs_list = NULL, .list_length = 0, .type = LV_FONT_FMT_TXT_CMAP_FORMAT0_TINY
     },
     {
-        .range_start = 61524, .range_length = 1, .glyph_id_start = 96,
-        .unicode_list = NULL, .glyph_id_ofs_list = NULL, .list_length = 0, .type = LV_FONT_FMT_TXT_CMAP_FORMAT0_TINY
+        .range_start = 61463, .range_length = 62, .glyph_id_start = 96,
+        .unicode_list = unicode_list_1, .glyph_id_ofs_list = NULL, .list_length = 2, .type = LV_FONT_FMT_TXT_CMAP_SPARSE_TINY
     }
 };
 
@@ -801,7 +817,7 @@ lv_font_t notoserif_18_ascii = {
 #endif
     .get_glyph_dsc = lv_font_get_glyph_dsc_fmt_txt,    /*Function pointer to get glyph's data*/
     .get_glyph_bitmap = lv_font_get_bitmap_fmt_txt,    /*Function pointer to get glyph's bitmap*/
-    .line_height = 19,          /*The maximum line height required by the font*/
+    .line_height = 20,          /*The maximum line height required by the font*/
     .base_line = 4,             /*Baseline measured from the bottom of the line*/
 #if !(LVGL_VERSION_MAJOR == 6 && LVGL_VERSION_MINOR == 0)
     .subpx = LV_FONT_SUBPX_NONE,
