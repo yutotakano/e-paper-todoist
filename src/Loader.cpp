@@ -214,21 +214,38 @@ void set_labels_from_tasks()
 {
   // Get current time (local time) as estimated from last NTP sync
   time_t now = time(nullptr);
-  tm *local_now = localtime(&now);
-  char relative_due_string[16];
+  struct tm local_now;
+  localtime_r(&now, &local_now);
+  char relative_due_string[20];
 
   for (size_t i = 0; i < sizeof(todoist_tasks) / sizeof(todoist_task_t); i++)
   {
+    tm *local_task_time = localtime(&todoist_tasks[i].due);
+
+    // Replace tick mark if overdue
+    if (todoist_tasks[i].due < now)
+    {
+      char *overdue_icon = "\xEF\x80\x97";
+      memcpy(todoist_tasks[i].content, overdue_icon, 3);
+    }
+
     // Set titles easy peasy
     lv_label_set_text(task_objs[i].content_text, todoist_tasks[i].content);
-
-    tm *local_task_time = localtime(&todoist_tasks[i].due);
 
     // Set due dates. Todoist gives us both a timestamp and a string, but the
     // string isn't relative (it's always MMM DD format), which isn't very
     // informative when quickly glacing at the display. So we calculate a relative
     // date string, and attach the time to it.
-    if (local_task_time->tm_mday == local_now->tm_mday)
+    if (local_task_time->tm_mday == local_now.tm_mday - 1)
+    {
+      strcpy(relative_due_string, "Yesterday ");
+      if (todoist_tasks[i].has_time)
+      {
+        strftime(relative_due_string + 10, sizeof(relative_due_string) - 10, "%H:%M", local_task_time);
+      }
+      lv_label_set_text(task_objs[i].due_text, relative_due_string);
+    }
+    else if (local_task_time->tm_mday == local_now.tm_mday)
     {
       strcpy(relative_due_string, "Today ");
       if (todoist_tasks[i].has_time)
@@ -237,7 +254,7 @@ void set_labels_from_tasks()
       }
       lv_label_set_text(task_objs[i].due_text, relative_due_string);
     }
-    else if (local_task_time->tm_mday == local_now->tm_mday + 1)
+    else if (local_task_time->tm_mday == local_now.tm_mday + 1)
     {
       strcpy(relative_due_string, "Tomorrow ");
       if (todoist_tasks[i].has_time)
