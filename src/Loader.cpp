@@ -45,6 +45,8 @@ TodoistJsonPrint todoist_json_parser;
 
 void lvgl_flush_callback(lv_display_t *display, const lv_area_t *area, unsigned char *px_map);
 
+uint32_t last_millis = 0;
+
 void setup(void)
 {
   Serial.begin(115200);
@@ -149,6 +151,7 @@ void setup(void)
     lv_obj_set_style_pad_left(task_objs[i].due_text, 24, LV_PART_MAIN);
   }
 
+  // Set up timers
   time_update_timer = lv_timer_create(update_time, 30000, NULL);
   task_update_timer = lv_timer_create(update_tasks, 300000, NULL);
 
@@ -282,6 +285,13 @@ void set_labels_from_tasks()
   }
 }
 
+void tick()
+{
+  uint32_t now = millis();
+  lv_tick_inc(now - last_millis);
+  last_millis = now;
+}
+
 void update_tasks(lv_timer_t *timer)
 {
   todoist_json_parser.init();
@@ -335,11 +345,11 @@ void update_tasks(lv_timer_t *timer)
 void update_time(lv_timer_t *timer)
 {
   time_t now = time(nullptr);
-  now += 15;
-  tm *timeinfo = localtime(&now);
   // 15 seconds forward to take into account the display update time and slow
   // processing of the ESP8266
-  char time_str[6];
+  now += 15;
+  tm *timeinfo = localtime(&now);
+  char time_str[6] = {0};
   sprintf(time_str, "%02d:%02d", timeinfo->tm_hour, timeinfo->tm_min);
   lv_label_set_text(current_time_text, time_str);
 
@@ -352,15 +362,16 @@ void update_time(lv_timer_t *timer)
     lv_refr_now(lvgl_display_black);
     lv_obj_set_style_bg_color(lv_display_get_screen_active(lvgl_display_black), lv_color_white(), 0);
     lv_obj_set_style_bg_color(lv_display_get_screen_active(lvgl_display_red), lv_color_black(), 0);
-    lv_refr_now(lvgl_display_red);
+    lv_refr_now(NULL);
     lv_obj_set_style_bg_color(lv_display_get_screen_active(lvgl_display_red), lv_color_white(), 0);
     lv_obj_set_style_text_color(current_time_text, lv_color_black(), 0);
   }
+  lv_obj_set_style_bg_color(lv_display_get_screen_active(lvgl_display_red), lv_color_white(), 0);
 }
 
 void loop(void)
 {
+  tick();
   lv_timer_handler();
-  lv_tick_inc(1000);
-  delay(1000);
+  delay(5000);
 }
