@@ -353,20 +353,35 @@ void update_time(lv_timer_t *timer)
   sprintf(time_str, "%02d:%02d", timeinfo->tm_hour, timeinfo->tm_min);
   lv_label_set_text(current_time_text, time_str);
 
-  if (timeinfo->tm_min == 0)
+  if (timeinfo->tm_min % 10 == 0)
   {
     // Flash black, then red, to both indicate the hour, and to fully refresh
     // the display and avoid ghost pixels or discolouration
-    lv_obj_set_style_bg_color(lv_display_get_screen_active(lvgl_display_black), lv_color_black(), 0);
-    lv_obj_set_style_text_color(current_time_text, lv_color_white(), 0);
-    lv_refr_now(lvgl_display_black);
-    lv_obj_set_style_bg_color(lv_display_get_screen_active(lvgl_display_black), lv_color_white(), 0);
-    lv_obj_set_style_bg_color(lv_display_get_screen_active(lvgl_display_red), lv_color_black(), 0);
+    lv_obj_t *sys_layer_black = lv_display_get_layer_top(lvgl_display_black);
+    lv_obj_t *sys_layer_red = lv_display_get_layer_top(lvgl_display_red);
+    lv_obj_set_style_bg_color(sys_layer_black, lv_color_black(), 0);
+    lv_obj_set_style_bg_opa(sys_layer_black, LV_OPA_100, 0);
+    lv_obj_set_style_bg_color(sys_layer_red, lv_color_black(), 0);
+    lv_obj_set_style_bg_opa(sys_layer_red, LV_OPA_100, 0);
     lv_refr_now(NULL);
-    lv_obj_set_style_bg_color(lv_display_get_screen_active(lvgl_display_red), lv_color_white(), 0);
-    lv_obj_set_style_text_color(current_time_text, lv_color_black(), 0);
+    // lv_obj_set_style_bg_color(sys_layer_black, lv_color_white(), 0);
+    // lv_obj_set_style_bg_opa(sys_layer_black, LV_OPA_0, 0);
+    // lv_refr_now(NULL);
+    // lv_obj_set_style_bg_color(sys_layer_black, lv_color_black(), 0);
+    // lv_obj_set_style_bg_opa(sys_layer_black, LV_OPA_100, 0);
+    // lv_obj_set_style_bg_color(sys_layer_red, lv_color_white(), 0);
+    // lv_obj_set_style_bg_opa(sys_layer_red, LV_OPA_0, 0);
+    // lv_refr_now(NULL);
+    lv_obj_set_style_bg_color(sys_layer_red, lv_color_white(), 0);
+    lv_obj_set_style_bg_opa(sys_layer_red, LV_OPA_0, 0);
+    lv_obj_set_style_bg_color(sys_layer_black, lv_color_white(), 0);
+    lv_obj_set_style_bg_opa(sys_layer_black, LV_OPA_0, 0);
+    lv_refr_now(NULL);
   }
-  lv_obj_set_style_bg_color(lv_display_get_screen_active(lvgl_display_red), lv_color_white(), 0);
+  else
+  {
+    lv_obj_set_style_bg_color(lv_display_get_screen_active(lvgl_display_red), lv_color_white(), 0);
+  }
 }
 
 void loop(void)
