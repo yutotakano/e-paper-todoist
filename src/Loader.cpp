@@ -199,8 +199,8 @@ void lvgl_flush_callback(lv_display_t *display, const lv_area_t *area, unsigned 
         uint16_t color = px_map_16[i + pixel];
         if (mode == 0)
         {
-          // RED/White mode, so we want to set the bit if the pixel has a red component
-          if ((color >> 11) > 16 && ((color & 0x1F) < 16))
+          // RED/White mode, so we want to set the bit if the pixel has a strong red component
+          if ((color >> 11) > 16 && ((color & 0x1F) < 16 && ((color & 0x7E0) >> 5) < 32))
           {
             final_color |= 0x01 << (7 - pixel);
           }
@@ -208,7 +208,7 @@ void lvgl_flush_callback(lv_display_t *display, const lv_area_t *area, unsigned 
         else
         {
           // BW mode, so we want to set the bit only if the pixel is all bright
-          if ((color >> 11) > 16 && ((color & 0x1F) > 16) && ((color & 0x7E0) > 16))
+          if ((color >> 11) > 24 && ((color & 0x1F) > 24) && (((color & 0x7E0) >> 5) > 48))
           {
             final_color |= 0x01 << (7 - pixel);
           }
@@ -217,8 +217,9 @@ void lvgl_flush_callback(lv_display_t *display, const lv_area_t *area, unsigned 
 
       if (i % (area->x2 - area->x1 + 1) == 0 && (area->x2 != 399 || area->x1 != 0))
       {
+        Serial.printf("new line within subarea\n");
         // New line of this area (and it's not the whole width), so send 0x4E to set x pos
-        EPD_Send_1(0x4E, area->x1 & 0x3F);
+        EPD_Send_1(0x4E, area->x1 >> 3);
         int32_t y = area->y1 + i / (area->x2 - area->x1 + 1);
         EPD_Send_2(0x4F, y & 0xFF, (y >> 8) & 0xFF);
       }
@@ -230,9 +231,9 @@ void lvgl_flush_callback(lv_display_t *display, const lv_area_t *area, unsigned 
   if (lv_display_flush_is_last(display))
   {
     Serial.printf("Finished sending data\n");
-    EPD_SendCommand(0x22); // no idea what this does
-    EPD_SendData(0xF7);
-    EPD_SendCommand(0x20);
+    EPD_SendCommand(0x22); // Set display option 2
+    EPD_SendData(0xF7);    // Update the display 1 (partial)
+    EPD_SendCommand(0x20); // Activate the option set above
     Serial.printf("Waiting for idle\n");
     EPD_WaitUntilIdle_high(); // busy pin is high during previous operation, wait until complete
 
@@ -248,7 +249,6 @@ void lvgl_flush_callback(lv_display_t *display, const lv_area_t *area, unsigned 
 
 void set_labels_from_tasks()
 {
-  Serial.printf("running set label from tasks\n");
   // Get current time (local time) as estimated from last NTP sync
   time_t now = time(nullptr);
   struct tm local_now;
@@ -324,7 +324,6 @@ void tick()
 
 void update_tasks(lv_timer_t *timer)
 {
-  Serial.printf("running update tasks\n");
   todoist_json_parser.init();
   if (WiFi.status() == WL_CONNECTED)
   {
@@ -375,7 +374,6 @@ void update_tasks(lv_timer_t *timer)
 
 void update_time(lv_timer_t *timer)
 {
-  Serial.printf("running update time\n");
   time_t now = time(nullptr);
   // 15 seconds forward to take into account the display update time and slow
   // processing of the ESP8266
@@ -395,6 +393,9 @@ void update_time(lv_timer_t *timer)
     lv_refr_now(NULL);
     delay(1);
     lv_obj_set_style_bg_color(sys_layer_black, lv_color_make(255, 0, 0), 0);
+    lv_refr_now(NULL);
+    delay(1);
+    lv_obj_set_style_bg_color(sys_layer_black, lv_color_black(), 0);
     lv_refr_now(NULL);
     delay(1);
     lv_obj_set_style_bg_color(sys_layer_black, lv_color_white(), 0);
