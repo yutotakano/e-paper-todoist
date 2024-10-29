@@ -18,9 +18,8 @@ BearSSL::WiFiClientSecure client;
 HTTPClient https;
 
 lv_display_t *lvgl_display_black;
-lv_display_t *lvgl_display_red;
-#define DRAW_BUFFER_SIZE 400
-static uint8_t lvgl_draw_buffer[DRAW_BUFFER_SIZE + 8];
+#define DRAW_BUFFER_SIZE 1600
+static uint16_t lvgl_draw_buffer[DRAW_BUFFER_SIZE];
 
 typedef struct
 {
@@ -31,7 +30,7 @@ typedef struct
 
 // Layout
 lv_obj_t *current_time_text;
-lv_point_precise_t header_line_points[] = {{140, 30}, {400, 30}};
+lv_point_precise_t header_line_points[] = {{140, 30}, {380, 30}};
 lv_obj_t *header_line;
 lv_obj_t *list_container;
 task_obj_t task_objs[3] = {0};
@@ -102,27 +101,24 @@ void setup(void)
   // Set lvgl up
   lv_init();
   lvgl_display_black = lv_display_create(400, 300);
-  lv_display_set_color_format(lvgl_display_black, LV_COLOR_FORMAT_I1);
+  lv_display_set_color_format(lvgl_display_black, LV_COLOR_FORMAT_RGB565);
   lv_display_set_buffers(lvgl_display_black, lvgl_draw_buffer, NULL, sizeof(lvgl_draw_buffer), LV_DISPLAY_RENDER_MODE_PARTIAL);
   lv_display_set_flush_cb(lvgl_display_black, lvgl_flush_callback);
   lv_display_set_default(lvgl_display_black);
 
-  lvgl_display_red = lv_display_create(400, 300);
-  lv_display_set_color_format(lvgl_display_red, LV_COLOR_FORMAT_I1);
-  lv_display_set_buffers(lvgl_display_red, lvgl_draw_buffer, NULL, sizeof(lvgl_draw_buffer), LV_DISPLAY_RENDER_MODE_PARTIAL);
-  lv_display_set_flush_cb(lvgl_display_red, lvgl_flush_callback);
-
-  current_time_text = lv_label_create(lv_display_get_screen_active(lvgl_display_red));
+  current_time_text = lv_label_create(lv_screen_active());
   lv_obj_set_style_text_font(current_time_text, &neuton_50_digits, 0);
   lv_label_set_text(current_time_text, "00:00");
   lv_obj_set_style_text_align(current_time_text, LV_TEXT_ALIGN_CENTER, 0);
   lv_obj_align(current_time_text, LV_ALIGN_TOP_LEFT, 15, 15);
+  lv_obj_set_style_text_color(current_time_text, lv_color_make(255, 0, 0), LV_PART_MAIN);
 
-  header_line = lv_line_create(lv_display_get_screen_active(lvgl_display_red));
+  header_line = lv_line_create(lv_screen_active());
   lv_line_set_points(header_line, header_line_points, 2);
   lv_obj_set_style_line_width(header_line, 4, 0);
+  lv_obj_set_style_line_color(header_line, lv_color_make(255, 0, 0), 0);
 
-  list_container = lv_obj_create(lv_display_get_screen_active(lvgl_display_black));
+  list_container = lv_obj_create(lv_screen_active());
   lv_obj_set_size(list_container, 400, 250);
   lv_obj_align(list_container, LV_ALIGN_BOTTOM_LEFT, 0, 0);
   lv_obj_set_flex_flow(list_container, LV_FLEX_FLOW_COLUMN);
@@ -130,6 +126,7 @@ void setup(void)
   lv_obj_set_style_pad_row(list_container, 20, LV_PART_MAIN);
   lv_obj_set_style_bg_opa(list_container, LV_OPA_0, LV_PART_MAIN);
   lv_obj_set_style_border_opa(list_container, LV_OPA_0, LV_PART_MAIN);
+  lv_obj_set_style_shadow_opa(list_container, LV_OPA_0, LV_PART_MAIN);
 
   for (size_t i = 0; i < sizeof(task_objs) / sizeof(task_obj_t); i++)
   {
@@ -140,6 +137,7 @@ void setup(void)
     lv_obj_set_style_pad_row(task_objs[i].container, 0, LV_PART_MAIN);
     lv_obj_set_style_bg_opa(task_objs[i].container, LV_OPA_0, LV_PART_MAIN);
     lv_obj_set_style_border_opa(task_objs[i].container, LV_OPA_0, LV_PART_MAIN);
+    lv_obj_set_style_shadow_opa(task_objs[i].container, LV_OPA_0, LV_PART_MAIN);
 
     task_objs[i].content_text = lv_label_create(task_objs[i].container);
     lv_label_set_text_fmt(task_objs[i].content_text, "Placeholder Task %d", i);
@@ -164,61 +162,93 @@ bool first = true;
 
 void lvgl_flush_callback(lv_display_t *display, const lv_area_t *area, unsigned char *px_map)
 {
-  px_map += 8; // Skip the first 8 bytes since it is LVGL metadata
+  uint16_t *px_map_16 = (uint16_t *)px_map;
 
-  // Serial.printf("Running flush for %s (%d->%d, %d->%d)...\n", display == lvgl_display_black ? "black" : "red", area->x1, area->x2, area->y1, area->y2);
   if (first)
   {
-    EPD_dispIndex = 1;
     EPD_Init_4in2_V2();
-    // Serial.printf("Init done\n");
+    Serial.printf("Init done\n");
     first = false;
   }
 
-  EPD_Send_1(0x4E, area->x1 & 0x3F);
-  EPD_Send_2(0x4F, area->y1 & 0xFF, (area->y1 >> 8) & 0xFF);
-
-  if (display != lvgl_display_black)
+  for (int mode = 0; mode < 2; mode++)
   {
-    EPD_SendCommand(0x26); // Start RED transmission
-  }
-  else
-  {
-    EPD_SendCommand(0x24); // Start BW transmission
-  }
-  for (int32_t i = 0; i < DRAW_BUFFER_SIZE; i++)
-  {
-    if (i % (area->x2 - area->x1 + 1) == 0 && (area->x2 != 399 || area->x1 != 0))
+    EPD_Send_1(0x4E, area->x1 & 0x3F);
+    EPD_Send_2(0x4F, area->y1 & 0xFF, (area->y1 >> 8) & 0xFF);
+    // Mode 0: RED, Mode 1: BW
+    if (mode == 0)
     {
-      // New line of this area (and it's not the whole width), so send 0x4E to set x pos
-      EPD_Send_1(0x4E, area->x1 & 0x3F);
-      int32_t y = area->y1 + i / (area->x2 - area->x1 + 1);
-      EPD_Send_2(0x4F, y & 0xFF, (y >> 8) & 0xFF);
+      EPD_SendCommand(0x26); // Start RED transmission
     }
-    EPD_SendData((byte)px_map[i]); // Red channel
+    else
+    {
+      EPD_SendCommand(0x24); // Start BW transmission
+    }
+
+    for (int i = 0; i < ((area->x2 - area->x1 + 1) * (area->y2 - area->y1 + 1)); i += 8)
+    {
+      if (i + 7 >= ((area->x2 - area->x1 + 1) * (area->y2 - area->y1 + 1)))
+      {
+        Serial.printf("shouldn't happen\n");
+        break;
+      }
+      byte final_color = 0x00;
+      // for each of the 8 pixels going into the final single byte
+      for (unsigned int pixel = 0; pixel < 8; pixel++)
+      {
+        uint16_t color = px_map_16[i + pixel];
+        if (mode == 0)
+        {
+          // RED/White mode, so we want to set the bit if the pixel has a red component
+          if ((color >> 11) > 16 && ((color & 0x1F) < 16))
+          {
+            final_color |= 0x01 << (7 - pixel);
+          }
+        }
+        else
+        {
+          // BW mode, so we want to set the bit only if the pixel is all bright
+          if ((color >> 11) > 16 && ((color & 0x1F) > 16) && ((color & 0x7E0) > 16))
+          {
+            final_color |= 0x01 << (7 - pixel);
+          }
+        }
+      }
+
+      if (i % (area->x2 - area->x1 + 1) == 0 && (area->x2 != 399 || area->x1 != 0))
+      {
+        // New line of this area (and it's not the whole width), so send 0x4E to set x pos
+        EPD_Send_1(0x4E, area->x1 & 0x3F);
+        int32_t y = area->y1 + i / (area->x2 - area->x1 + 1);
+        EPD_Send_2(0x4F, y & 0xFF, (y >> 8) & 0xFF);
+      }
+
+      EPD_SendData(final_color);
+    }
   }
-  // Serial.printf("Sending data done\n");
 
   if (lv_display_flush_is_last(display))
   {
-    EPD_SendCommand(0x22);
+    Serial.printf("Finished sending data\n");
+    EPD_SendCommand(0x22); // no idea what this does
     EPD_SendData(0xF7);
     EPD_SendCommand(0x20);
-    EPD_WaitUntilIdle_high();
-    // Serial.printf("Flush done\n");
+    Serial.printf("Waiting for idle\n");
+    EPD_WaitUntilIdle_high(); // busy pin is high during previous operation, wait until complete
 
     Serial.printf("Entering deep sleep\n");
     EPD_SendCommand(0x10); // DEEP_SLEEP
     EPD_SendData(0x01);
+    Serial.printf("Entered deep sleep\n");
     first = true;
   }
-  // Serial.printf("Flush done, informing ready\n");
   // Inform the graphics library that the flush is done
   lv_display_flush_ready(display);
 }
 
 void set_labels_from_tasks()
 {
+  Serial.printf("running set label from tasks\n");
   // Get current time (local time) as estimated from last NTP sync
   time_t now = time(nullptr);
   struct tm local_now;
@@ -294,6 +324,7 @@ void tick()
 
 void update_tasks(lv_timer_t *timer)
 {
+  Serial.printf("running update tasks\n");
   todoist_json_parser.init();
   if (WiFi.status() == WL_CONNECTED)
   {
@@ -344,6 +375,7 @@ void update_tasks(lv_timer_t *timer)
 
 void update_time(lv_timer_t *timer)
 {
+  Serial.printf("running update time\n");
   time_t now = time(nullptr);
   // 15 seconds forward to take into account the display update time and slow
   // processing of the ESP8266
@@ -358,29 +390,21 @@ void update_time(lv_timer_t *timer)
     // Flash black, then red, to both indicate the hour, and to fully refresh
     // the display and avoid ghost pixels or discolouration
     lv_obj_t *sys_layer_black = lv_display_get_layer_top(lvgl_display_black);
-    lv_obj_t *sys_layer_red = lv_display_get_layer_top(lvgl_display_red);
     lv_obj_set_style_bg_color(sys_layer_black, lv_color_black(), 0);
     lv_obj_set_style_bg_opa(sys_layer_black, LV_OPA_100, 0);
-    lv_obj_set_style_bg_color(sys_layer_red, lv_color_black(), 0);
-    lv_obj_set_style_bg_opa(sys_layer_red, LV_OPA_100, 0);
     lv_refr_now(NULL);
-    // lv_obj_set_style_bg_color(sys_layer_black, lv_color_white(), 0);
-    // lv_obj_set_style_bg_opa(sys_layer_black, LV_OPA_0, 0);
-    // lv_refr_now(NULL);
-    // lv_obj_set_style_bg_color(sys_layer_black, lv_color_black(), 0);
-    // lv_obj_set_style_bg_opa(sys_layer_black, LV_OPA_100, 0);
-    // lv_obj_set_style_bg_color(sys_layer_red, lv_color_white(), 0);
-    // lv_obj_set_style_bg_opa(sys_layer_red, LV_OPA_0, 0);
-    // lv_refr_now(NULL);
-    lv_obj_set_style_bg_color(sys_layer_red, lv_color_white(), 0);
-    lv_obj_set_style_bg_opa(sys_layer_red, LV_OPA_0, 0);
+    delay(1);
+    lv_obj_set_style_bg_color(sys_layer_black, lv_color_make(255, 0, 0), 0);
+    lv_refr_now(NULL);
+    delay(1);
     lv_obj_set_style_bg_color(sys_layer_black, lv_color_white(), 0);
     lv_obj_set_style_bg_opa(sys_layer_black, LV_OPA_0, 0);
     lv_refr_now(NULL);
+    delay(1);
   }
   else
   {
-    lv_obj_set_style_bg_color(lv_display_get_screen_active(lvgl_display_red), lv_color_white(), 0);
+    lv_obj_set_style_bg_color(lv_screen_active(), lv_color_white(), 0);
   }
 }
 

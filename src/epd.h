@@ -28,7 +28,9 @@
 
 /* SPI pin definition --------------------------------------------------------*/
 // SPI pin definition
+#ifndef PIN_SPI_SCK
 #define PIN_SPI_SCK 14
+#endif
 #define PIN_SPI_DIN 13
 #define CS_PIN 15
 #define RST_PIN 2
@@ -243,7 +245,6 @@ void EPD_Reset()
 
 /* e-Paper initialization functions ------------------------------------------*/
 
-int EPD_dispIndex;        // The index of the e-Paper's type
 int EPD_dispX, EPD_dispY; // Current pixel's coordinates (for 2.13 only)
 void (*EPD_dispLoad)();   // Pointer on a image data writting function
 
