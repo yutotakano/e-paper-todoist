@@ -173,7 +173,7 @@ void lvgl_flush_callback(lv_display_t *display, const lv_area_t *area, unsigned 
 
   for (int mode = 0; mode < 2; mode++)
   {
-    EPD_Send_1(0x4E, area->x1 & 0x3F);
+    EPD_Send_1(0x4E, (area->x1) >> 3);
     EPD_Send_2(0x4F, area->y1 & 0xFF, (area->y1 >> 8) & 0xFF);
     // Mode 0: RED, Mode 1: BW
     if (mode == 0)
