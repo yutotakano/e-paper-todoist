@@ -114,7 +114,10 @@ void set_time_progress(float progress)
     }
   }
 
-  // Invalidate the line object because otherwise LVGL wouldn't know we changed it
+  // Refresh internal size calculation for the line object
+  lv_obj_refresh_self_size(time_progress_line);
+
+  // Invalidate the object because otherwise LVGL wouldn't know we changed it
   lv_obj_invalidate(time_progress_line);
 }
 
