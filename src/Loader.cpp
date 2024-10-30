@@ -469,7 +469,7 @@ void update_time(lv_timer_t *timer)
   lv_label_set_text(current_time_text, time_str);
   set_time_progress((float)timeinfo->tm_min / 60.0);
 
-  if (timeinfo->tm_min % 10 == 0)
+  if (timeinfo->tm_min % 60 == 0)
   {
     // Flash black, then red, to both indicate the hour, and to fully refresh
     // the display and avoid ghost pixels or discolouration
@@ -487,7 +487,6 @@ void update_time(lv_timer_t *timer)
     lv_obj_set_style_bg_color(sys_layer_black, lv_color_white(), 0);
     lv_obj_set_style_bg_opa(sys_layer_black, LV_OPA_0, 0);
     lv_refr_now(NULL);
-    delay(1);
   }
   else
   {
