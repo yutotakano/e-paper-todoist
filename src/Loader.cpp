@@ -293,7 +293,7 @@ void lvgl_flush_callback(lv_display_t *display, const lv_area_t *area, unsigned 
 
       if (i % (area->x2 - area->x1 + 1) == 0 && (area->x2 != 399 || area->x1 != 0))
       {
-        Serial.printf("new line within subarea\n");
+        Serial.printf("new line within subarea: i=%d (%d x %d)\n", i, area->x2 - area->x1 + 1, area->y2 - area->y1 + 1);
         // New line of this area (and it's not the whole width), so send 0x4E to set x pos
         EPD_Send_1(0x4E, area->x1 >> 3);
         int32_t y = area->y1 + i / (area->x2 - area->x1 + 1);
