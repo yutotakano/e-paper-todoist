@@ -103,10 +103,13 @@ void setup(void)
   // Set lvgl up
   lv_init();
   lvgl_display_black = lv_display_create(400, 300);
+  lv_display_set_default(lvgl_display_black);
   lv_display_set_color_format(lvgl_display_black, LV_COLOR_FORMAT_RGB565);
   lv_display_set_buffers(lvgl_display_black, lvgl_draw_buffer, NULL, sizeof(lvgl_draw_buffer), LV_DISPLAY_RENDER_MODE_PARTIAL);
   lv_display_set_flush_cb(lvgl_display_black, lvgl_flush_callback);
-  lv_display_set_default(lvgl_display_black);
+
+  // Use the simple theme, and disable default theme in conf.h to cut down binary size
+  lv_theme_simple_init(lvgl_display_black);
 
   current_time_text = lv_label_create(lv_screen_active());
   lv_obj_set_style_text_font(current_time_text, &neuton_50_digits, 0);
