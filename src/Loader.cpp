@@ -113,12 +113,6 @@ void set_time_progress(float progress)
       length_quota -= segment_length;
     }
   }
-
-  // Refresh internal size calculation for the line object
-  lv_obj_refresh_self_size(time_progress_line);
-
-  // Invalidate the object because otherwise LVGL wouldn't know we changed it
-  lv_obj_invalidate(time_progress_line);
 }
 
 void setup(void)
@@ -208,6 +202,7 @@ void setup(void)
   lv_obj_set_flex_flow(list_container, LV_FLEX_FLOW_COLUMN);
   lv_obj_set_style_pad_hor(list_container, 10, LV_PART_MAIN);
   lv_obj_set_style_pad_row(list_container, 20, LV_PART_MAIN);
+  lv_obj_set_style_bg_opa(list_container, LV_OPA_0, LV_PART_MAIN);
 
   for (size_t i = 0; i < sizeof(task_objs) / sizeof(task_obj_t); i++)
   {
