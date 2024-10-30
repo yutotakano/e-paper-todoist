@@ -222,7 +222,7 @@ void setup(void)
 
     task_objs[i].due_text = lv_label_create(task_objs[i].container);
     lv_label_set_text(task_objs[i].due_text, "Due: 2024-01-01");
-    lv_obj_set_style_pad_left(task_objs[i].due_text, 24, LV_PART_MAIN);
+    lv_obj_set_style_pad_left(task_objs[i].due_text, 26, LV_PART_MAIN);
   }
 
   // Set up timers
