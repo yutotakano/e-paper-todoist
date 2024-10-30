@@ -30,7 +30,7 @@ typedef struct
 
 // Layout
 lv_obj_t *current_time_text;
-lv_point_precise_t header_time_line_points[] = {{140, 24}, {140, 24}};
+lv_point_precise_t header_time_line_points[] = {{140, 26}, {140, 26}};
 lv_obj_t *header_time_line;
 lv_point_precise_t header_line_points[] = {{140, 30}, {380, 30}};
 lv_obj_t *header_line;
@@ -125,11 +125,11 @@ void setup(void)
 
   header_time_line = lv_line_create(lv_screen_active());
   lv_line_set_points(header_time_line, header_time_line_points, 2);
-  lv_obj_set_style_line_width(header_time_line, 4, 0);
+  lv_obj_set_style_line_width(header_time_line, 2, 0);
   lv_obj_set_style_line_color(header_time_line, lv_color_make(0, 0, 0), 0);
 
   list_container = lv_obj_create(lv_screen_active());
-  lv_obj_set_size(list_container, 400, 250);
+  lv_obj_set_size(list_container, 400, 220);
   lv_obj_align(list_container, LV_ALIGN_BOTTOM_LEFT, 0, 0);
   lv_obj_set_flex_flow(list_container, LV_FLEX_FLOW_COLUMN);
   lv_obj_set_style_pad_hor(list_container, 10, LV_PART_MAIN);
