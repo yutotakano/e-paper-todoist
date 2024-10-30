@@ -181,7 +181,7 @@ void lvgl_flush_callback(lv_display_t *display, const lv_area_t *area, unsigned 
     first = false;
   }
 
-  for (int mode = 0; mode < 2; mode++)
+  for (int mode = 1; mode >= 0; mode--)
   {
     EPD_Send_1(0x4E, (area->x1) >> 3);
     EPD_Send_2(0x4F, area->y1 & 0xFF, (area->y1 >> 8) & 0xFF);
@@ -241,9 +241,10 @@ void lvgl_flush_callback(lv_display_t *display, const lv_area_t *area, unsigned 
   if (lv_display_flush_is_last(display))
   {
     Serial.printf("Finished sending data\n");
-    EPD_SendCommand(0x22); // Set display option 2
-    EPD_SendData(0xF7);    // Update the display 1 (partial)
-    EPD_SendCommand(0x20); // Activate the option set above
+    EPD_Send_4(0x0C, 0b10001011, 0b11001100, 0b10010110, 0b00001111); // Booster soft start, idk maybe this makes power stronger?
+    EPD_SendCommand(0x22);                                            // Set display option 2
+    EPD_SendData(0xF7);                                               // Update the display in mode 2 (partial), i assume 7F is full update
+    EPD_SendCommand(0x20);                                            // Activate the option set above
     Serial.printf("Waiting for idle\n");
     EPD_WaitUntilIdle_high(); // busy pin is high during previous operation, wait until complete
 
