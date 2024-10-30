@@ -30,6 +30,8 @@ typedef struct
 
 // Layout
 lv_obj_t *current_time_text;
+lv_point_precise_t header_time_line_points[] = {{140, 24}, {140, 24}};
+lv_obj_t *header_time_line;
 lv_point_precise_t header_line_points[] = {{140, 30}, {380, 30}};
 lv_obj_t *header_line;
 lv_obj_t *list_container;
@@ -117,6 +119,11 @@ void setup(void)
   lv_line_set_points(header_line, header_line_points, 2);
   lv_obj_set_style_line_width(header_line, 4, 0);
   lv_obj_set_style_line_color(header_line, lv_color_make(255, 0, 0), 0);
+
+  header_time_line = lv_line_create(lv_screen_active());
+  lv_line_set_points(header_time_line, header_time_line_points, 2);
+  lv_obj_set_style_line_width(header_time_line, 4, 0);
+  lv_obj_set_style_line_color(header_time_line, lv_color_make(0, 0, 0), 0);
 
   list_container = lv_obj_create(lv_screen_active());
   lv_obj_set_size(list_container, 400, 250);
@@ -382,6 +389,8 @@ void update_time(lv_timer_t *timer)
   char time_str[6] = {0};
   sprintf(time_str, "%02d:%02d", timeinfo->tm_hour, timeinfo->tm_min);
   lv_label_set_text(current_time_text, time_str);
+
+  header_time_line_points[1].x = 140 + (timeinfo->tm_min * (header_line_points[1].x - header_line_points[0].x)) / 60;
 
   if (timeinfo->tm_min % 10 == 0)
   {
