@@ -265,7 +265,7 @@ void lvgl_flush_callback(lv_display_t *display, const lv_area_t *area, unsigned 
     {
       if (i + 7 >= ((area->x2 - area->x1 + 1) * (area->y2 - area->y1 + 1)))
       {
-        Serial.printf("shouldn't happen\n");
+        Serial.printf("shouldn't happen: i=%d, area=(%d,%d)-(%d,%d)\n", i, area->x1, area->y1, area->x2, area->y2);
         break;
       }
       byte final_color = 0x00;
