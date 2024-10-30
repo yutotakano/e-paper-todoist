@@ -458,8 +458,15 @@ void update_time(lv_timer_t *timer)
   tm *timeinfo = localtime(&now);
   char time_str[6] = {0};
   sprintf(time_str, "%02d:%02d", timeinfo->tm_hour, timeinfo->tm_min);
-  lv_label_set_text(current_time_text, time_str);
 
+  // Don't update the time if it's the same as before, since LVGL will not check
+  // if the text is the same (it has an internal copy) and will redraw
+  if (strcmp(time_str, lv_label_get_text(current_time_text)) == 0)
+  {
+    return;
+  }
+
+  lv_label_set_text(current_time_text, time_str);
   set_time_progress((float)timeinfo->tm_min / 60.0);
 
   if (timeinfo->tm_min % 10 == 0)
