@@ -30,8 +30,9 @@ typedef struct
 
 // Layout
 lv_obj_t *current_time_text;
-lv_point_precise_t header_time_line_points[] = {{140, 26}, {140, 26}};
-lv_obj_t *header_time_line;
+lv_point_precise_t time_progress_path[6] = {{200, 2}, {398, 2}, {398, 298}, {2, 298}, {2, 2}, {200, 2}};
+lv_point_precise_t time_progress_points[6] = {0}; // equal in size to time_progress_path
+lv_obj_t *time_progress_line;
 lv_point_precise_t header_line_points[] = {{140, 30}, {380, 30}};
 lv_obj_t *header_line;
 lv_obj_t *list_container;
@@ -47,6 +48,71 @@ TodoistJsonPrint todoist_json_parser;
 void lvgl_flush_callback(lv_display_t *display, const lv_area_t *area, unsigned char *px_map);
 
 uint32_t last_millis = 0;
+
+/**
+ * @brief Set the points of the time_progress_points variable to the given
+ * percentage progress along the time_progress_path. In other words, when the
+ * input is 0, all points will be at the starting position (practicaly invisible).
+ * When the input is 1, all points will equal that of the path. When the input
+ * is anything in between, the points will be linearly interpolated between the
+ * path points so it is as if progress moves along the path.
+ *
+ * @param progress The progress along the path in the range [0, 1].
+ */
+void set_time_progress(float progress)
+{
+  // Calculate total length of path by summing absolute coordinate differences
+  int32_t total_path_length = 0;
+  for (size_t i = 0; i < sizeof(time_progress_path) / sizeof(lv_point_precise_t) - 1; i++)
+  {
+    total_path_length += LV_ABS(time_progress_path[i].x - time_progress_path[i + 1].x) + LV_ABS(time_progress_path[i].y - time_progress_path[i + 1].y);
+  }
+
+  // Calculate length quota i.e. current path length. We will be subtracting
+  // from this value as we fill the points along the path.
+  int32_t length_quota = total_path_length * progress;
+
+  // First point will always be the same as the first point of the path.
+  time_progress_points[0].x = time_progress_path[0].x;
+  time_progress_points[0].y = time_progress_path[0].y;
+
+  // Fill points along the path. If we meet the current length, we stop and fill
+  // the rest of the points with the same coordinates.
+  for (size_t i = 1; i < sizeof(time_progress_path) / sizeof(lv_point_precise_t); i++)
+  {
+    if (length_quota == 0)
+    {
+      // Quota already filled, just copy the previous point (we need to fill
+      // the whole array with something as LVGL will draw all points).
+      time_progress_points[i].x = time_progress_points[i - 1].x;
+      time_progress_points[i].y = time_progress_points[i - 1].y;
+      continue;
+    }
+
+    // Calculate the segment length for the section between i-1 and i.
+    // We take the absolute value difference in X and Y and sum it. This won't
+    // handle diagonal lines nicely (progress will look slower than other parts
+    // because the "segment length" will be taxicab distance and not pythagorean)
+    // but that's fine for now as we don't have diagonals
+    int32_t segment_length = LV_ABS(time_progress_path[i].x - time_progress_path[i - 1].x) + LV_ABS(time_progress_path[i].y - time_progress_path[i - 1].y);
+    if (length_quota < segment_length)
+    {
+      // We don't have enough to fill this segment, so we calculate the
+      // coordinates of the point along the segment that corresponds to the
+      // current length quota.
+      time_progress_points[i].x = time_progress_path[i - 1].x + (time_progress_path[i].x - time_progress_path[i - 1].x) * length_quota / segment_length;
+      time_progress_points[i].y = time_progress_path[i - 1].y + (time_progress_path[i].y - time_progress_path[i - 1].y) * length_quota / segment_length;
+      length_quota = 0;
+    }
+    else
+    {
+      // We have enough to fill this segment, so we just copy over and subtract
+      time_progress_points[i].x = time_progress_path[i].x;
+      time_progress_points[i].y = time_progress_path[i].y;
+      length_quota -= segment_length;
+    }
+  }
+}
 
 void setup(void)
 {
@@ -123,13 +189,13 @@ void setup(void)
   lv_obj_set_style_line_width(header_line, 4, 0);
   lv_obj_set_style_line_color(header_line, lv_color_make(255, 0, 0), 0);
 
-  header_time_line = lv_line_create(lv_screen_active());
-  lv_line_set_points(header_time_line, header_time_line_points, 2);
-  lv_obj_set_style_line_width(header_time_line, 2, 0);
-  lv_obj_set_style_line_color(header_time_line, lv_color_make(0, 0, 0), 0);
+  time_progress_line = lv_line_create(lv_screen_active());
+  lv_line_set_points(time_progress_line, time_progress_points, sizeof(time_progress_points) / sizeof(lv_point_precise_t));
+  lv_obj_set_style_line_width(time_progress_line, 2, 0);
+  lv_obj_set_style_line_color(time_progress_line, lv_color_make(0, 0, 0), 0);
 
   list_container = lv_obj_create(lv_screen_active());
-  lv_obj_set_size(list_container, 400, 220);
+  lv_obj_set_size(list_container, 400, 230);
   lv_obj_align(list_container, LV_ALIGN_BOTTOM_LEFT, 0, 0);
   lv_obj_set_flex_flow(list_container, LV_FLEX_FLOW_COLUMN);
   lv_obj_set_style_pad_hor(list_container, 10, LV_PART_MAIN);
@@ -394,7 +460,7 @@ void update_time(lv_timer_t *timer)
   sprintf(time_str, "%02d:%02d", timeinfo->tm_hour, timeinfo->tm_min);
   lv_label_set_text(current_time_text, time_str);
 
-  header_time_line_points[1].x = 140 + (timeinfo->tm_min * (header_line_points[1].x - header_line_points[0].x)) / 60;
+  set_time_progress((float)timeinfo->tm_min / 60.0);
 
   if (timeinfo->tm_min % 10 == 0)
   {
