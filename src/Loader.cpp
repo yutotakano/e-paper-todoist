@@ -202,9 +202,6 @@ void setup(void)
   lv_obj_set_flex_flow(list_container, LV_FLEX_FLOW_COLUMN);
   lv_obj_set_style_pad_hor(list_container, 10, LV_PART_MAIN);
   lv_obj_set_style_pad_row(list_container, 20, LV_PART_MAIN);
-  lv_obj_set_style_bg_opa(list_container, LV_OPA_0, LV_PART_MAIN);
-  lv_obj_set_style_border_opa(list_container, LV_OPA_0, LV_PART_MAIN);
-  lv_obj_set_style_shadow_opa(list_container, LV_OPA_0, LV_PART_MAIN);
 
   for (size_t i = 0; i < sizeof(task_objs) / sizeof(task_obj_t); i++)
   {
@@ -213,9 +210,6 @@ void setup(void)
     lv_obj_set_flex_flow(task_objs[i].container, LV_FLEX_FLOW_COLUMN);
     lv_obj_set_style_pad_all(task_objs[i].container, 0, LV_PART_MAIN);
     lv_obj_set_style_pad_row(task_objs[i].container, 0, LV_PART_MAIN);
-    lv_obj_set_style_bg_opa(task_objs[i].container, LV_OPA_0, LV_PART_MAIN);
-    lv_obj_set_style_border_opa(task_objs[i].container, LV_OPA_0, LV_PART_MAIN);
-    lv_obj_set_style_shadow_opa(task_objs[i].container, LV_OPA_0, LV_PART_MAIN);
 
     task_objs[i].content_text = lv_label_create(task_objs[i].container);
     lv_label_set_text_fmt(task_objs[i].content_text, "Placeholder Task %d", i);
@@ -224,7 +218,12 @@ void setup(void)
 
     task_objs[i].due_text = lv_label_create(task_objs[i].container);
     lv_label_set_text(task_objs[i].due_text, "Due: 2024-01-01");
-    lv_obj_set_style_pad_left(task_objs[i].due_text, 26, LV_PART_MAIN);
+    lv_obj_set_style_pad_hor(task_objs[i].due_text, 4, LV_PART_MAIN);
+    lv_obj_set_style_margin_left(task_objs[i].due_text, 22, LV_PART_MAIN);
+
+    // Set background of due text to be visible but white, so we can change it to red when urgent
+    lv_obj_set_style_bg_color(task_objs[i].due_text, lv_color_make(255, 255, 255), LV_PART_MAIN);
+    lv_obj_set_style_bg_opa(task_objs[i].due_text, LV_OPA_100, LV_PART_MAIN);
   }
 
   // Set up timers
@@ -374,6 +373,13 @@ void set_labels_from_tasks()
     if (todoist_tasks[i].due < now)
     {
       memcpy(todoist_tasks[i].content, "\xEE\xAE\xA0", 3);
+      lv_obj_set_style_text_color(task_objs[i].due_text, lv_color_white(), 0);
+      lv_obj_set_style_bg_color(task_objs[i].due_text, lv_color_make(255, 0, 0), LV_PART_MAIN);
+    }
+    else
+    {
+      lv_obj_set_style_text_color(task_objs[i].due_text, lv_color_black(), 0);
+      lv_obj_set_style_bg_color(task_objs[i].due_text, lv_color_white(), LV_PART_MAIN);
     }
 
     // Set titles easy peasy
