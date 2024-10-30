@@ -11,19 +11,30 @@ static lwjson_stream_parser_t stream_parser;
 todoist_task_t todoist_tasks[3];
 todoist_task_t current_parsing_task;
 
+/**
+ * @brief Callback function for the lwjson parser. This function will be called
+ * whenever a new JSON token is parsed. We use this to extract the content and
+ * due date of each task, and then insert them into the todoist_tasks array.
+ *
+ * @param jsp lwjson stream parser context
+ * @param type type of the current token
+ */
 static void
 prv_example_callback_func(lwjson_stream_parser_t *jsp, lwjson_stream_type_t type)
 {
   if (jsp->stack_pos == 3 && lwjson_stack_seq_3(jsp, 0, ARRAY, OBJECT, KEY) && strcmp(jsp->stack[2].meta.name, "content") == 0)
   {
+    // [{"content": "..."}, ...]
     // Title
     Serial.printf("\"content\": \"%s\", ", jsp->data.str.buff);
     strncpy(current_parsing_task.content, jsp->data.str.buff, sizeof(current_parsing_task.content));
   }
   else if (jsp->stack_pos == 5 && lwjson_stack_seq_5(jsp, 0, ARRAY, OBJECT, KEY, OBJECT, KEY) && strcmp(jsp->stack[2].meta.name, "due") == 0)
   {
+    // [{"due": {k: v}}, ...]
     if (strcmp(jsp->stack[4].meta.name, "date") == 0)
     {
+      // [{"due": {"date": "..."}}, ...]
       Serial.printf("\"due.date\": \"%s\", ", jsp->data.str.buff);
       // If only due time is not set yet, set to unix time from date
       if (!current_parsing_task.has_time)
@@ -46,6 +57,7 @@ prv_example_callback_func(lwjson_stream_parser_t *jsp, lwjson_stream_type_t type
     }
     else if (strcmp(jsp->stack[4].meta.name, "datetime") == 0)
     {
+      // [{"due": {"datetime": "..."}}, ...]
       Serial.printf("\"due.datetime\": \"%s\", ", jsp->data.str.buff);
       // Temporarily hold onto current TZ. Since getenv() returns a pointer to
       // the actual environment variable, we need to copy it to a new buffer.
@@ -64,6 +76,7 @@ prv_example_callback_func(lwjson_stream_parser_t *jsp, lwjson_stream_type_t type
   }
   else if (jsp->stack_pos == 1 && lwjson_stack_seq_1(jsp, 0, ARRAY) && type == LWJSON_STREAM_TYPE_OBJECT_END)
   {
+    // [{}, ...]
     Serial.printf("}");
     // Just finished parsing a task, now insert it somewhere in 1, 2, or 3
     // First begin by checking against the latemost one. If we start from the
@@ -104,10 +117,16 @@ prv_example_callback_func(lwjson_stream_parser_t *jsp, lwjson_stream_type_t type
       todoist_tasks[0].has_time = current_parsing_task.has_time;
     }
 
+    // Reset current_parsing_task for the next task
     current_parsing_task = {0};
   }
 }
 
+/**
+ * @brief Initialise our Print interface for parsing JSON from the Todoist API.
+ * Should be called for every new JSON response to parse, as it resets the
+ * tasks array and the internal state of the parser.
+ */
 void TodoistJsonPrint::init()
 {
   lwjson_stream_init(&stream_parser, prv_example_callback_func);
@@ -120,11 +139,19 @@ void TodoistJsonPrint::init()
   }
 }
 
+/**
+ * @brief Write a byte into the stream parser. This function implements a part
+ * of the Print interface required by ESP8266HTTPClient::writeToPrint().
+ *
+ * @param t byte content
+ * @return size_t bytes written (always 1 unless error)
+ */
 inline size_t TodoistJsonPrint::write(uint8_t t)
 {
   res = lwjson_stream_parse(&stream_parser, (char)t);
   if (res == lwjsonSTREAMINPROG)
   {
+    // do nothing
   }
   else if (res == lwjsonSTREAMWAITFIRSTCHAR)
   {
@@ -137,11 +164,21 @@ inline size_t TodoistJsonPrint::write(uint8_t t)
   else
   {
     Serial.printf("Error\r\n");
+    return 0;
   }
 
   return 1;
 }
 
+/**
+ * @brief Write a sequence of bytes into the stream parser. This function
+ * implements a part of the Print interface required by
+ * ESP8266HTTPClient::writeToPrint().
+ *
+ * @param buffer pointer to the buffer
+ * @param size size of the buffer
+ * @return size_t bytes written
+ */
 inline size_t TodoistJsonPrint::write(const uint8_t *buffer, size_t size)
 {
   size_t i;
@@ -156,6 +193,16 @@ inline size_t TodoistJsonPrint::write(const uint8_t *buffer, size_t size)
   return i;
 }
 
+/**
+ * @brief Return the number of bytes available for writing. This function
+ * implements a part of the Print interface required by
+ * ESP8266HTTPClient::writeToPrint(). A useful implementation may return some
+ * number of bytes to be written into a limited buffer, but we don't have such
+ * limit so we just return a constant (i.e. always available to write).
+ * 512 was chosen so we could write the whole TLS chunk in one go.
+ *
+ * @return int
+ */
 inline int TodoistJsonPrint::availableForWrite()
 {
   return 512;
