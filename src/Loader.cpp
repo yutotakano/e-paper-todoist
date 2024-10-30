@@ -45,6 +45,7 @@ lv_timer_t *time_update_timer;
 
 TodoistJsonPrint todoist_json_parser;
 
+void lvgl_invalidation_callback(lv_event_t *e);
 void lvgl_flush_callback(lv_display_t *display, const lv_area_t *area, unsigned char *px_map);
 
 uint32_t last_millis = 0;
@@ -173,6 +174,7 @@ void setup(void)
   lv_display_set_color_format(lvgl_display_black, LV_COLOR_FORMAT_RGB565);
   lv_display_set_buffers(lvgl_display_black, lvgl_draw_buffer, NULL, sizeof(lvgl_draw_buffer), LV_DISPLAY_RENDER_MODE_PARTIAL);
   lv_display_set_flush_cb(lvgl_display_black, lvgl_flush_callback);
+  lv_display_add_event_cb(lvgl_display_black, lvgl_invalidation_callback, LV_EVENT_INVALIDATE_AREA, NULL);
 
   // Use the simple theme, and disable default theme in conf.h to cut down binary size
   lv_theme_simple_init(lvgl_display_black);
@@ -234,8 +236,40 @@ void setup(void)
   lv_timer_ready(time_update_timer);
 }
 
+/**
+ * @brief Callback to be called on LV_EVENT_INVALIDATE_AREA, to modify the LVGL
+ * invalidation area to be a multiple of 8, so that we can batch every 8 pixels
+ * during our flush.
+ *
+ * @param e The event, see https://docs.lvgl.io/9.2/porting/display.html
+ */
+void lvgl_invalidation_callback(lv_event_t *e)
+{
+  lv_event_code_t code = lv_event_get_code(e);
+  if (code == LV_EVENT_INVALIDATE_AREA)
+  {
+    lv_area_t *area = (lv_area_t *)lv_event_get_param(e);
+    // Modify the area to be a multiple of 8, as our flush_callback batches
+    // every 8 pixels into one byte
+    area->x1 = area->x1 & 0xFFF8;
+    area->x2 = (area->x2 & 0xFFF8) + 7; // Add 7 (not 8) since area is inclusive
+  }
+}
+
+// Whether this is the first of a series of flushes for this invalidation area
 bool first = true;
 
+/**
+ * @brief Callback to be called during flush, to send the data to the e-Paper
+ * display. This function will be called over multiple times for the same
+ * invalidation area depending on the size of the buffer we gave to LVGL, with
+ * the px_map argi,emt containing the pixel data (in our case RGB565 format)
+ * for area.
+ *
+ * @param display The display object
+ * @param area The sub-area for this flush
+ * @param px_map The pixel data for this sub-area
+ */
 void lvgl_flush_callback(lv_display_t *display, const lv_area_t *area, unsigned char *px_map)
 {
   uint16_t *px_map_16 = (uint16_t *)px_map;
