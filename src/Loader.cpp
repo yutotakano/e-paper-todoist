@@ -30,7 +30,7 @@ typedef struct
 
 // Layout
 lv_obj_t *current_time_text;
-lv_point_precise_t time_progress_path[6] = {{200, 2}, {398, 2}, {398, 298}, {2, 298}, {2, 2}, {200, 2}};
+lv_point_precise_t time_progress_path[6] = {{200, 4}, {396, 4}, {396, 296}, {4, 296}, {4, 4}, {200, 4}};
 lv_point_precise_t time_progress_points[6] = {0}; // equal in size to time_progress_path
 lv_obj_t *time_progress_line;
 lv_point_precise_t header_line_points[] = {{140, 30}, {380, 30}};
