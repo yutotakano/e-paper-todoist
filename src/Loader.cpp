@@ -33,7 +33,7 @@ lv_obj_t *current_time_text;
 lv_point_precise_t time_progress_path[6] = {{200, 4}, {396, 4}, {396, 296}, {4, 296}, {4, 4}, {200, 4}};
 lv_point_precise_t time_progress_points[6] = {0}; // equal in size to time_progress_path
 lv_obj_t *time_progress_line;
-lv_point_precise_t header_line_points[] = {{140, 30}, {380, 30}};
+lv_point_precise_t header_line_points[] = {{130, 45}, {380, 45}};
 lv_obj_t *header_line;
 lv_obj_t *list_container;
 task_obj_t task_objs[3] = {0};
@@ -183,7 +183,7 @@ void setup(void)
   lv_obj_set_style_text_font(current_time_text, &neuton_50_digits, 0);
   lv_label_set_text(current_time_text, "00:00");
   lv_obj_set_style_text_align(current_time_text, LV_TEXT_ALIGN_CENTER, 0);
-  lv_obj_align(current_time_text, LV_ALIGN_TOP_LEFT, 15, 15);
+  lv_obj_align(current_time_text, LV_ALIGN_TOP_LEFT, 15, 17);
   lv_obj_set_style_text_color(current_time_text, lv_color_make(255, 0, 0), LV_PART_MAIN);
 
   header_line = lv_line_create(lv_screen_active());
