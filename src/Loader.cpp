@@ -393,6 +393,8 @@ void set_labels_from_tasks()
     // string isn't relative (it's always MMM DD format), which isn't very
     // informative when quickly glacing at the display. So we calculate a relative
     // date string, and attach the time to it.
+    // These conditionals don't work properly on a month boundary. I'm not sure
+    // if there is an easy way to fix this without a lot of mktime etc boilerplate...
     if (local_task_time->tm_mday == local_now.tm_mday - 1)
     {
       strcpy(relative_due_string, "Yesterday ");
