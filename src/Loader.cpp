@@ -113,6 +113,9 @@ void set_time_progress(float progress)
       length_quota -= segment_length;
     }
   }
+
+  lv_obj_refresh_self_size(time_progress_line);
+  lv_obj_invalidate(time_progress_line);
 }
 
 void setup(void)
